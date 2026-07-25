@@ -22,6 +22,7 @@ import MapView from '@/components/map/MapView';
 import AssetPortraitCard from '@/components/detail/AssetPortraitCard';
 import AssetSummaryBar from '@/components/detail/AssetSummaryBar';
 import HistoryTrendCard from '@/components/detail/HistoryTrendCard';
+import DueDiligenceOverview from '@/components/due_diligence/DueDiligenceOverview';
 import AiFeaturesCard from '@/components/detail/AiFeaturesCard';
 import ValuationPanel from '@/components/detail/ValuationPanel';
 import FormulaModal from '@/components/detail/FormulaModal';
@@ -205,6 +206,8 @@ export default function AssetDetailPage() {
           <AssetPortraitCard asset={asset} />
 
           <HistoryTrendCard asset={asset} />
+
+          <DueDiligenceOverview asset={asset} />
 
           <AiFeaturesCard asset={asset} />
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
-import { List, Empty, Spin, Alert, Tabs, Tag } from 'antd';
+import { List, Empty, Spin, Alert, Tabs, Tag, Button } from 'antd';
 import { ListSkeleton, EmptyState } from '@/components/common/StateViews';
+import { FileTextOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import RiskTag from '@/components/common/RiskTag';
@@ -78,13 +79,24 @@ export default function HomePage() {
 
       {/* 顶部统计栏 */}
       <div className="absolute top-4 left-4 right-[376px] z-20">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="bg-white/95 rounded-lg shadow-card px-3.5 py-1.5">
-            <div className="text-xs font-semibold text-gray-800 leading-tight">
-              融通地产 · 全域资产 GIS 总览
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="bg-white/95 rounded-lg shadow-card px-3.5 py-1.5 flex items-center gap-3">
+            <div>
+              <div className="text-xs font-semibold text-ink-900 leading-tight">
+                融通地产 · 全域资产 GIS 总览
+              </div>
+              <div className="text-[10px] text-ink-500 leading-tight">Data: 2026-07-24 · M1+</div>
             </div>
-            <div className="text-[10px] text-gray-500 leading-tight">Data: 2026-07-24 · M1</div>
           </div>
+          <Button
+            type="default"
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => navigate('/due-diligence')}
+            className="!bg-white/95"
+          >
+            尽调工作台
+          </Button>
         </div>
         <StatBar />
         {error && (

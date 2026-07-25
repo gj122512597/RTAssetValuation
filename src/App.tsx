@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import AssetDetailPage from './pages/AssetDetailPage';
 import IntelPage from './pages/IntelPage';
+import DueDiligenceCenter from './pages/DueDiligenceCenter';
+import DueDiligenceNewPage from './pages/DueDiligenceNewPage';
+import DueDiligenceIntakePage from './pages/DueDiligenceIntakePage';
 
 export default function App() {
   return (
@@ -9,6 +12,9 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/asset/:id" element={<AssetDetailPage />} />
       <Route path="/intel" element={<IntelPage />} />
+      <Route path="/due-diligence" element={<DueDiligenceCenter />} />
+      <Route path="/due-diligence/new" element={<DueDiligenceNewPage />} />
+      <Route path="/due-diligence/:id" element={<DueDiligenceIntakePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
