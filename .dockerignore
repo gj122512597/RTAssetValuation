@@ -1,0 +1,58 @@
+# ===== 依赖 =====
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ===== Build 产物 =====
+dist
+dist-ssr
+*.local
+
+# ===== 工作记忆（绝不能进镜像，绝不能 commit） =====
+.codebuddy
+.codebuddy/
+
+# ===== 环境/凭证 =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ===== Git =====
+.git
+.gitignore
+.github
+
+# ===== IDE =====
+.vscode
+.idea
+*.swp
+*.swo
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Docker =====
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# ===== 日志 =====
+*.log
+logs
+npm-debug.log*
+
+# ===== 测试/构建缓存 =====
+.vite
+.cache
+coverage
+.eslintcache
+
+# ===== 演示 / 文档 =====
+README.md
+docs

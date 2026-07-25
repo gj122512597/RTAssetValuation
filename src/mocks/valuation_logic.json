@@ -1,0 +1,23 @@
+{
+  "base_price": 4.0,
+  "coefficients": {
+    "subway": { "weight": -0.1, "desc": "每远 100 米扣减" },
+    "condition": { "weight": 0.2, "desc": "每增加 1 分增加" }
+  },
+  "type_base": {
+    "office": 6.5,
+    "retail": 8.0,
+    "hotel": 5.0,
+    "apartment": 4.5,
+    "warehouse": 1.2,
+    "plant": 1.4
+  },
+  "decoration_coef": {
+    "rough": 0.78,
+    "simple": 0.88,
+    "standard": 1.0,
+    "fine": 1.18
+  },
+  "free_rent_per_15d": -0.04,
+  "default_model": "comparative"
+}

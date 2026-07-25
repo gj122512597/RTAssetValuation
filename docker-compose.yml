@@ -1,0 +1,30 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 用 build-time 注入，bundle 里会 inline 这些值
+        # 注：bundle 是公开分布的，所以这些值会被别人看到
+        # AMap 控制台应设置 Referer 白名单防止滥用
+        VITE_AMAP_KEY: ${VITE_AMAP_KEY:-}
+        VITE_AMAP_SECURITY: ${VITE_AMAP_SECURITY:-}
+    container_name: rt-asset-valuation
+    restart: unless-stopped
+    ports:
+      # 主机端口:容器端口；改 8080 可以避免与系统 80 冲突
+      - "${PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 可选：加一个 watchtower 自动更新镜像
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   restart: unless-stopped
+  #   command: --interval 86400 --cleanup
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock

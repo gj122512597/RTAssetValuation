@@ -1,0 +1,8 @@
+[
+  { "id": "task-001", "source": "beike", "region": "朝阳区", "schedule": "0 6 * * *", "last_run_at": "2026-07-24 06:00:21", "record_count": 1842, "status": "running", "manual_calibrated": 17 },
+  { "id": "task-002", "source": "58", "region": "海淀区", "schedule": "0 7 * * *", "last_run_at": "2026-07-24 07:00:14", "record_count": 1265, "status": "running", "manual_calibrated": 8 },
+  { "id": "task-003", "source": "fangtianxia", "region": "丰台区", "schedule": "0 8 * * *", "last_run_at": "2026-07-23 08:00:07", "record_count": 612, "status": "paused", "manual_calibrated": 4 },
+  { "id": "task-004", "source": "beike", "region": "通州区", "schedule": "0 6 * * *", "last_run_at": "2026-07-24 06:00:33", "record_count": 945, "status": "running", "manual_calibrated": 22 },
+  { "id": "task-005", "source": "lianjia", "region": "西城区", "schedule": "0 5 * * *", "last_run_at": "2026-07-24 05:00:12", "record_count": 820, "status": "error", "manual_calibrated": 0 },
+  { "id": "task-006", "source": "58", "region": "东城区", "schedule": "0 7 * * *", "last_run_at": "2026-07-24 07:00:45", "record_count": 1108, "status": "running", "manual_calibrated": 11 }
+]
