@@ -13,17 +13,34 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  });
-  if (!res.ok) {
-    let msg = res.statusText;
-    try { const body = await res.json(); msg = body.error || msg; } catch { /* ignore */ }
-    throw new Error(`API ${res.status}: ${msg}`);
+  // 超时保护：10 秒未响应则中断（防止后端未启动时 fetch hang）
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      ...init,
+    });
+    if (!res.ok) {
+      let msg = res.statusText;
+      try { const body = await res.json(); msg = body.error || msg; } catch { /* ignore */ }
+      throw new Error(`API ${res.status}: ${msg}`);
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('请求超时（10s）—— 请确认后端服务已启动 (npm run server:dev)');
+    }
+    if (e instanceof TypeError && e.message.includes('Failed to fetch')) {
+      throw new Error('无法连接后端服务 —— 请确认 localhost:3001 已启动 (npm run server:dev)');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
 }
 
 function qs(params: Record<string, unknown>): string {

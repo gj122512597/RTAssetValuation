@@ -72,7 +72,8 @@ async function searchNearByType(
   // 确保 PlaceSearch 插件已加载
   await ensurePlugin(AMapObj, 'AMap.PlaceSearch');
 
-  return new Promise((resolve, reject) => {
+  // 搜索 Promise（可能因网络问题回调不触发，需配合超时）
+  const searchPromise = new Promise<Array<{ id: string; name: string; address: string; lng: number; lat: number; adname: string; tel: string }>>((resolve) => {
     const PlaceSearchCtor = (AMapObj as unknown as { PlaceSearch: new (opts: Record<string, unknown>) => {
       searchNearBy: (keyword: string, center: [number, number], cb: (status: string, result: unknown) => void) => void;
     } }).PlaceSearch;
@@ -85,7 +86,7 @@ async function searchNearByType(
       extensions: 'all',
     });
 
-    placeSearch.searchNearBy('', [lng, lat], (status: string, result: unknown) => {
+    placeSearch.searchNearBy('', [lng, lat], radius, (status: string, result: unknown) => {
       if (status !== 'complete') {
         resolve([]);
         return;
@@ -106,6 +107,13 @@ async function searchNearByType(
       }));
     });
   });
+
+  // 超时保护：15 秒未返回则视为失败
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('搜索超时（15s）')), 15000);
+  });
+
+  return Promise.race([searchPromise, timeoutPromise]);
 }
 
 export interface PoiCrawlResult {
