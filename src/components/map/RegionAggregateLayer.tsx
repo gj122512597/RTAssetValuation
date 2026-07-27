@@ -1,17 +1,15 @@
 import { useMemo } from 'react';
 import { Marker } from 'react-map-gl';
 import type { Asset } from '@/types';
+import { PRICE_BUCKETS } from './AssetMarker';
 
-/** 区域聚合层颜色：按均价分 5 档（与之前一致，定义在此组件内避免依赖 AssetMarker） */
-const AGG_BUCKETS = ['#94a3b8', '#60a5fa', '#34d399', '#fbbf24', '#f87171'];
-const AGG_LABELS = ['<1', '1-3', '3-6', '6-10', '≥10'];
+/** 区域聚合层颜色：按均价分 3 档，与 AssetMarker 的 PRICE_BUCKETS 完全统一 */
+const AGG_BUCKETS = PRICE_BUCKETS.map((b) => b.color);
+const AGG_LABELS = PRICE_BUCKETS.map((b) => b.label);
 
-function aggBucket(p: number) {
-  if (p < 1) return 0;
-  if (p < 3) return 1;
-  if (p < 6) return 2;
-  if (p < 10) return 3;
-  return 4;
+function aggBucket(p: number): number {
+  const i = PRICE_BUCKETS.findIndex((b) => p >= b.min && p < b.max);
+  return i < 0 ? 0 : i;
 }
 
 interface Props {
@@ -22,7 +20,7 @@ interface Props {
 /**
  * 行政区域聚合层（M1）：
  *  - 按 region 字段将资产聚合到几何中心
- *  - 颜色：按区域均价落在 5 桶的哪一桶
+ *  - 颜色：按区域均价落在 3 桶的哪一桶
  *  - 大小：区域内资产数量
  *  - 单击聚合圆 → onPickRegion（用于后续下钻视图）
  */

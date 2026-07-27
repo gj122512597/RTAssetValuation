@@ -6,6 +6,7 @@ import {
   HeatMapOutlined,
 } from '@ant-design/icons';
 import { useAssetStore } from '@/stores/assetStore';
+import { PRICE_BUCKETS } from '@/components/map/AssetMarker';
 import type { BusinessType, ReceivedBatch, RegionLayerMode } from '@/types';
 
 const BUSINESS_OPTIONS: { value: BusinessType; label: string; emoji: string }[] = [
@@ -50,6 +51,8 @@ export default function LayerControlPanel() {
   const currentUser = useAssetStore((s) => s.currentUser);
   const toggleBusinessType = useAssetStore((s) => s.toggleBusinessType);
   const toggleBatch = useAssetStore((s) => s.toggleBatch);
+  const selectedPriceBuckets = useAssetStore((s) => s.selectedPriceBuckets);
+  const togglePriceBucket = useAssetStore((s) => s.togglePriceBucket);
   const setRegionLayer = useAssetStore((s) => s.setRegionLayer);
   const setCurrentUser = useAssetStore((s) => s.setCurrentUser);
   const showMetro = useAssetStore((s) => s.showMetro);
@@ -101,8 +104,8 @@ export default function LayerControlPanel() {
           <span>数据规模</span>
           <span className="ml-auto text-[10px] text-ink-300">已加载 {assets.length}</span>
         </div>
-        <div className="text-[11px] text-ink-500 leading-snug">
-          统一数据集 · 225 资产 + 325 竞品（手写 25 + 业务 demo 200/300）
+        <div className="text-[11px] text-ink-500 leading-snug break-words">
+          统一数据集 · 225 资产（手写 25 + 生成 200）+ 325 竞品（手写 25 + 生成 300）+ 876 历史成交 + 26 POI，已全量入库
         </div>
       </div>
 
@@ -145,6 +148,34 @@ export default function LayerControlPanel() {
                         : 'bg-white text-ink-700 border-ink-100 hover:border-brand')
                     }
                   >
+                    {b.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <SubLabel>单价档（元/㎡·天）</SubLabel>
+            <div className="flex gap-1.5 flex-wrap">
+              {PRICE_BUCKETS.map((b) => {
+                const active = selectedPriceBuckets.includes(b.label);
+                return (
+                  <button
+                    key={b.label}
+                    type="button"
+                    onClick={() => togglePriceBucket(b.label)}
+                    className={
+                      'px-2 py-1 text-xs rounded-full border transition-colors flex items-center gap-1 ' +
+                      (active
+                        ? 'bg-brand text-white border-brand'
+                        : 'bg-white text-ink-700 border-ink-100 hover:border-brand')
+                    }
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: b.color }}
+                    />
                     {b.label}
                   </button>
                 );

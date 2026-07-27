@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import NewAssetValuationPage from './pages/NewAssetValuationPage';
+import ModelingIntroPage from './pages/ModelingIntroPage';
 import HomePage from './pages/HomePage';
 import AssetDetailPage from './pages/AssetDetailPage';
 import IntelPage from './pages/IntelPage';
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/due-diligence/new" element={<DueDiligenceNewPage />} />
       <Route path="/due-diligence/:id" element={<DueDiligenceIntakePage />} />
       <Route path="/valuation/new" element={<NewAssetValuationPage />} />
+      <Route path="/modeling-intro" element={<ModelingIntroPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

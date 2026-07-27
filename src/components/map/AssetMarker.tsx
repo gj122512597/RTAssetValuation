@@ -14,7 +14,7 @@ interface AssetMarkerProps {
 /**
  * M1 PRD §1.3 设计：
  *   - 形状 = 资产状态（圆/方/菱） —— 视觉识别
- *   - 颜色 = 单价分桶（5 档） —— PRD "颜色深浅代表预估租金单价"
+ *   - 颜色 = 单价分桶（3 档） —— PRD "颜色深浅代表预估租金单价"
  *   - 大小 = 置信度（10~16 px）
  *
  * 形态色版：
@@ -26,11 +26,10 @@ interface AssetMarkerProps {
  *   空置 > 90 天 → 红色 ping 闪烁
  */
 
+// 单价 3 档（与左下角图例、资产概览、区域聚合层完全统一）
 export const PRICE_BUCKETS = [
   { label: '<1', min: 0, max: 1, color: colors.priceBucket.ultraLow },
-  { label: '1-3', min: 1, max: 3, color: colors.priceBucket.low },
-  { label: '3-6', min: 3, max: 6, color: colors.priceBucket.mid },
-  { label: '6-10', min: 6, max: 10, color: colors.priceBucket.high },
+  { label: '1-10', min: 1, max: 10, color: colors.priceBucket.mid },
   { label: '≥10', min: 10, max: Infinity, color: colors.priceBucket.ultraHigh },
 ] as const;
 

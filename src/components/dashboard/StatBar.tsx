@@ -1,4 +1,5 @@
-import { Card, Statistic, Row, Col, Progress } from 'antd';
+import { Progress } from 'antd';
+import type { ReactNode } from 'react';
 import { HomeOutlined, AreaChartOutlined, RiseOutlined, DollarOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { useAssetStore } from '@/stores/assetStore';
 import { useMemo } from 'react';
@@ -39,85 +40,112 @@ export default function StatBar() {
   }, [assets]);
 
   return (
-    <div className="bg-white rounded-lg shadow-card border border-gray-100 p-4">
-      <Row gutter={[16, 0]}>
-        <Col flex="1 1 0">
-          <Card size="small" className="!shadow-none !border-0">
-            <Statistic
-              title={
-                <span className="text-xs flex items-center gap-1">
-                  <HomeOutlined /> 资产总数
-                </span>
-              }
-              value={stats.count}
-              suffix="处"
-              valueStyle={{ fontSize: 22, color: '#1f6feb' }}
-            />
-          </Card>
-        </Col>
-        <Col flex="1 1 0">
-          <Card size="small" className="!shadow-none !border-0">
-            <Statistic
-              title={
-                <span className="text-xs flex items-center gap-1">
-                  <AreaChartOutlined /> 总建面
-                </span>
-              }
-              value={stats.totalArea}
-              valueStyle={{ fontSize: 22 }}
-              suffix="㎡"
-            />
-          </Card>
-        </Col>
-        <Col flex="1 1 0">
-          <Card size="small" className="!shadow-none !border-0">
-            <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-              <RiseOutlined /> 平均出租率
-            </div>
-            <div className="text-xl font-bold">{stats.avgOccupancy}%</div>
-            <Progress
-              percent={stats.avgOccupancy}
-              showInfo={false}
-              size="small"
-              strokeColor="#22c55e"
-            />
-          </Card>
-        </Col>
-        <Col flex="1 1 0">
-          <Card size="small" className="!shadow-none !border-0">
-            <Statistic
-              title={
-                <span className="text-xs flex items-center gap-1">
-                  <DollarOutlined /> 本月预估收入
-                </span>
-              }
-              value={stats.monthlyRevenue}
-              valueStyle={{ fontSize: 20 }}
-              prefix="¥"
-              formatter={(v) => {
-                const n = Number(v);
-                if (n >= 1e8) return `${(n / 1e8).toFixed(1)}亿`;
-                if (n >= 1e4) return `${(n / 1e4).toFixed(1)}万`;
-                return n.toLocaleString();
-              }}
-            />
-          </Card>
-        </Col>
-        <Col flex="1 1 0">
-          <Card size="small" className="!shadow-none !border-0">
-            <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-              <ExperimentOutlined /> AI 评估覆盖率
-            </div>
-            <div className="text-xl font-bold">{stats.aiCoverage}%</div>
-            <Progress
-              percent={stats.aiCoverage}
-              showInfo={false}
-              size="small"
-              strokeColor="#1f6feb"
-            />
-          </Card>
-        </Col>
-      </Row>
+    <div className="bg-white/95 rounded-lg shadow-card border border-gray-100 px-3 py-2 flex items-center gap-4">
+      {/* 主指标：资产总数（最核心） */}
+      <div className="flex flex-col leading-none">
+        <span className="text-[11px] text-ink-500 flex items-center gap-1">
+          <HomeOutlined /> 资产总数
+        </span>
+        <span className="mt-1 text-2xl font-bold text-brand">
+          {stats.count}
+          <span className="ml-0.5 text-sm font-normal text-ink-400">处</span>
+        </span>
+      </div>
+
+      <div className="h-9 w-px shrink-0 bg-gray-200" />
+
+      {/* 主指标：本月预估收入 */}
+      <div className="flex flex-col leading-none">
+        <span className="text-[11px] text-ink-500 flex items-center gap-1">
+          <DollarOutlined /> 本月预估收入
+        </span>
+        <span className="mt-1 text-xl font-bold text-ink-900">
+          {stats.monthlyRevenue >= 1e8
+            ? `${(stats.monthlyRevenue / 1e8).toFixed(1)}亿`
+            : stats.monthlyRevenue >= 1e4
+              ? `${(stats.monthlyRevenue / 1e4).toFixed(1)}万`
+              : stats.monthlyRevenue.toLocaleString()}
+          <span className="ml-0.5 text-xs font-normal text-ink-400">元</span>
+        </span>
+      </div>
+
+      <div className="h-9 w-px shrink-0 bg-gray-200" />
+
+      {/* 次级指标组 */}
+      <div className="flex flex-1 items-center justify-around gap-3 min-w-0">
+        <SubKpi
+          icon={<AreaChartOutlined />}
+          label="总建面"
+          value={stats.totalArea}
+          suffix="㎡"
+        />
+        <SubKpiProgress
+          icon={<RiseOutlined />}
+          label="平均出租率"
+          value={stats.avgOccupancy}
+          color="#22c55e"
+        />
+        <SubKpiProgress
+          icon={<ExperimentOutlined />}
+          label="AI 评估覆盖"
+          value={stats.aiCoverage}
+          color="#1f6feb"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 次级指标：数字 + 单位，弱化呈现 */
+function SubKpi({
+  icon,
+  label,
+  value,
+  suffix,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  suffix: string;
+}) {
+  return (
+    <div className="flex flex-col leading-none min-w-0">
+      <span className="text-[11px] text-ink-500 flex items-center gap-1">
+        {icon} {label}
+      </span>
+      <span className="mt-1 text-sm font-semibold text-ink-700 truncate">
+        {value.toLocaleString()}
+        <span className="ml-0.5 text-[10px] font-normal text-ink-400">{suffix}</span>
+      </span>
+    </div>
+  );
+}
+
+/** 次级指标：百分比 + 细进度条 */
+function SubKpiProgress({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex flex-col leading-none min-w-0">
+      <span className="text-[11px] text-ink-500 flex items-center gap-1">
+        {icon} {label}
+      </span>
+      <span className="mt-1 text-sm font-semibold text-ink-700">{value}%</span>
+      <Progress
+        percent={value}
+        showInfo={false}
+        size="small"
+        strokeColor={color}
+        className="!mt-1 !mb-0 w-16"
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import { loadAMap, getAmapKey, getAmapSecurity } from '@/utils/amapEngine';
+import { getPriceBucket } from './AssetMarker';
 import type { Asset, CompetitorForRadar } from '@/types';
 
 /**
@@ -226,6 +227,7 @@ export default function AmapMapView({
   const allAssets = useAssetStore((s) => s.assets);
   const selectedBusinessTypes = useAssetStore((s) => s.selectedBusinessTypes);
   const selectedBatches = useAssetStore((s) => s.selectedBatches);
+  const selectedPriceBuckets = useAssetStore((s) => s.selectedPriceBuckets);
   const currentUser = useAssetStore((s) => s.currentUser);
   const poi = useAssetStore((s) => s.poi);
   const showMetro = useAssetStore((s) => s.showMetro);
@@ -239,11 +241,16 @@ export default function AmapMapView({
           return false;
         if (selectedBatches.length > 0 && !selectedBatches.includes(a.received_batch))
           return false;
+        if (
+          selectedPriceBuckets.length > 0 &&
+          !selectedPriceBuckets.includes(getPriceBucket(a.estimated_price).label)
+        )
+          return false;
         if (currentUser.scope === 'region' && currentUser.region && a.region !== currentUser.region)
           return false;
         return true;
       }),
-    [allAssets, selectedBusinessTypes, selectedBatches, currentUser]
+    [allAssets, selectedBusinessTypes, selectedBatches, selectedPriceBuckets, currentUser]
   );
 
   const center = useMemo<[number, number]>(

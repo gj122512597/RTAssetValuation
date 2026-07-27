@@ -1,13 +1,14 @@
 import { useEffect, useMemo } from 'react';
-import { List, Empty, Spin, Alert, Tabs, Tag, Button, Space } from 'antd';
+import { List, Empty, Spin, Alert, Tabs, Tag } from 'antd';
 import { ListSkeleton, EmptyState } from '@/components/common/StateViews';
-import { ExperimentOutlined, FileTextOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import RiskTag from '@/components/common/RiskTag';
+import { getPriceBucket } from '@/components/map/AssetMarker';
 import MapView from '@/components/map/MapView';
 import HeatLegend from '@/components/map/HeatLegend';
 import StatBar from '@/components/dashboard/StatBar';
+import ProcessFlowBanner from '@/components/dashboard/ProcessFlowBanner';
 import LayerControlPanel from '@/components/dashboard/LayerControlPanel';
 import type { Asset } from '@/types';
 
@@ -27,6 +28,7 @@ export default function HomePage() {
   // 用 useMemo 派生过滤结果，避免 store selector 每次返回新数组导致无限渲染
   const selectedBusinessTypes = useAssetStore((s) => s.selectedBusinessTypes);
   const selectedBatches = useAssetStore((s) => s.selectedBatches);
+  const selectedPriceBuckets = useAssetStore((s) => s.selectedPriceBuckets);
   const currentUser = useAssetStore((s) => s.currentUser);
 
   const visibleAssets = useMemo(
@@ -36,11 +38,16 @@ export default function HomePage() {
           return false;
         if (selectedBatches.length > 0 && !selectedBatches.includes(a.received_batch))
           return false;
+        if (
+          selectedPriceBuckets.length > 0 &&
+          !selectedPriceBuckets.includes(getPriceBucket(a.estimated_price).label)
+        )
+          return false;
         if (currentUser.scope === 'region' && currentUser.region && a.region !== currentUser.region)
           return false;
         return true;
       }),
-    [assets, selectedBusinessTypes, selectedBatches, currentUser]
+    [assets, selectedBusinessTypes, selectedBatches, selectedPriceBuckets, currentUser]
   );
   const visibleCompetitors = useMemo(
     () =>
@@ -77,56 +84,8 @@ export default function HomePage() {
       </div>
 
       {/* 顶部统计栏 */}
-      <div className="absolute top-4 left-4 right-[376px] z-20">
-        <div className="mb-2">
-          <div className="bg-white/95 rounded-lg shadow-card px-4 py-2 flex items-center gap-3">
-            {/* 品牌标识 */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                XX
-              </div>
-              <div className="leading-tight">
-                <span className="text-sm font-bold text-ink-900">XX地产</span>
-                <span className="text-ink-300 mx-1.5">·</span>
-                <span className="text-xs text-ink-600">全域资产 GIS 总览</span>
-              </div>
-            </div>
-            {/* 分隔线 */}
-            <div className="h-7 w-px bg-gray-200" />
-            {/* 导航入口 */}
-            <Space size="small">
-              <Button
-                type="text"
-                size="small"
-                icon={<GlobalOutlined />}
-                onClick={() => navigate('/intel')}
-              >
-                数据情报站
-              </Button>
-              <Button
-                type="text"
-                size="small"
-                icon={<FileTextOutlined />}
-                onClick={() => navigate('/due-diligence')}
-              >
-                尽调工作台
-              </Button>
-              <Button
-                type="text"
-                size="small"
-                icon={<ExperimentOutlined />}
-                onClick={() => navigate('/valuation/new')}
-              >
-                新资产估价
-              </Button>
-            </Space>
-            {/* 右侧数据时间戳 */}
-            <div className="ml-auto text-[10px] text-ink-400 leading-tight text-right">
-              <div>Data: 2026-07-24</div>
-              <div className="text-ink-300">M1+ · v0.1</div>
-            </div>
-          </div>
-        </div>
+      <div className="absolute top-4 left-4 right-[336px] z-20">
+        <ProcessFlowBanner />
         <StatBar />
         {error && (
           <div className="mt-2">
@@ -139,21 +98,24 @@ export default function HomePage() {
       <HeatLegend />
 
       {/* 右侧浮动 Sidebar */}
-      <div className="absolute top-4 right-4 bottom-4 w-[360px] z-20 flex flex-col bg-white rounded-lg shadow-card overflow-hidden">
+      <div className="absolute top-4 right-4 bottom-4 w-[320px] z-20 flex flex-col bg-white rounded-lg shadow-card overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div>
             <div className="text-base font-semibold text-gray-900">资产概览</div>
-            <div className="text-[11px] text-gray-500">Asset Overview</div>
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              数据已全量入库
+            </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <div className="text-xs text-gray-500">可见/总数</div>
-            <div className="text-sm font-semibold">
+            <div className="text-sm font-semibold whitespace-nowrap">
               {stats.count} / {assets.length}
             </div>
           </div>
         </div>
 
-        <div className="border-b border-gray-100">
+        <div className="border-b border-gray-100 flex-1 min-h-0 overflow-y-auto">
           <Tabs
             defaultActiveKey="layer"
             items={[
@@ -183,7 +145,7 @@ export default function HomePage() {
                     }}
                     renderItem={(item) => (
                       <List.Item
-                        className="!px-5 !py-2.5 cursor-pointer hover:bg-blue-50/60 transition-colors"
+                        className="!px-5 !py-2.5 cursor-pointer hover:bg-brand-50 transition-colors"
                         onClick={() => handleSelect(item)}
                       >
                         <div className="w-full">

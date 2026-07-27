@@ -8,7 +8,7 @@ import { PRICE_BUCKETS } from './AssetMarker';
 
 export default function HeatLegend() {
   return (
-    <div className="absolute left-4 bottom-12 z-10 bg-white/95 rounded-lg shadow-card px-3.5 py-2.5 text-xs space-y-2.5 max-w-[220px]">
+    <div className="absolute left-4 bottom-4 z-20 bg-white/95 rounded-lg shadow-card px-3.5 py-2.5 text-xs space-y-2.5 max-w-[220px]">
       {/* 形态/状态 */}
       <div>
         <div className="font-semibold mb-1">形态 / 状态</div>

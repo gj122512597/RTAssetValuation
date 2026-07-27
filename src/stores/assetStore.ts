@@ -23,6 +23,7 @@ import { generateAiFeatures } from '@/utils/aiFeaturesMock';
 import { generateAssets, generateCompetitors } from '@/utils/extendedMockGenerator';
 import { injectHistoricalTransactions } from '@/utils/historicalTransactionMock';
 import type { IntakeAsset } from '@/types';
+import { getPriceBucket } from '@/components/map/AssetMarker';
 
 interface AssetState {
   // 数据
@@ -45,6 +46,7 @@ interface AssetState {
   // M1: 图层与过滤
   selectedBusinessTypes: BusinessType[];
   selectedBatches: ReceivedBatch[];
+  selectedPriceBuckets: string[];
   regionLayer: RegionLayerMode;
   currentUser: CurrentUser;
 
@@ -75,6 +77,7 @@ interface AssetState {
   toggleBusinessType: (t: BusinessType) => void;
   setBusinessTypes: (types: BusinessType[]) => void;
   toggleBatch: (b: ReceivedBatch) => void;
+  togglePriceBucket: (label: string) => void;
   setRegionLayer: (mode: RegionLayerMode) => void;
   setCurrentUser: (u: CurrentUser) => void;
   setPricingModel: (m: PricingModel) => void;
@@ -128,6 +131,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
 
   selectedBusinessTypes: [],
   selectedBatches: [],
+  selectedPriceBuckets: [],
   regionLayer: 'none',
   currentUser: DEFAULT_USER,
 
@@ -197,6 +201,13 @@ export const useAssetStore = create<AssetState>((set, get) => ({
       selectedBatches: s.selectedBatches.includes(b)
         ? s.selectedBatches.filter((x) => x !== b)
         : [...s.selectedBatches, b],
+    })),
+
+  togglePriceBucket: (label) =>
+    set((s) => ({
+      selectedPriceBuckets: s.selectedPriceBuckets.includes(label)
+        ? s.selectedPriceBuckets.filter((x) => x !== label)
+        : [...s.selectedPriceBuckets, label],
     })),
 
   setRegionLayer: (mode) => set({ regionLayer: mode }),
@@ -275,11 +286,13 @@ export const useAssetStore = create<AssetState>((set, get) => ({
   getAssetById: (id) => (id ? get().assets.find((a) => a.id === id) : undefined),
 
   getVisibleAssets: () => {
-    const { assets, selectedBusinessTypes, selectedBatches, currentUser } = get();
+    const { assets, selectedBusinessTypes, selectedBatches, selectedPriceBuckets, currentUser } = get();
     return assets.filter((a) => {
       if (selectedBusinessTypes.length > 0 && !selectedBusinessTypes.includes(a.type as BusinessType))
         return false;
       if (selectedBatches.length > 0 && !selectedBatches.includes(a.received_batch))
+        return false;
+      if (selectedPriceBuckets.length > 0 && !selectedPriceBuckets.includes(getPriceBucket(a.estimated_price).label))
         return false;
       if (currentUser.scope === 'region' && currentUser.region && a.region !== currentUser.region)
         return false;

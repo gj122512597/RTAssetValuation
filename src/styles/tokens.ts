@@ -18,7 +18,7 @@ export const colors = {
     900: '#0d285d',
   },
 
-  // 单价 5 桶（marker 主色，PRD §1.3 "颜色深浅代表预估租金单价"）
+  // 单价 3 桶（marker / 图例 / 资产概览 / 区域聚合 统一主色，PRD §1.3 "颜色深浅代表预估租金单价"）
   priceBucket: {
     ultraLow: '#94a3b8', // < 1 元/㎡·天
     low: '#7eb6f0',      // 1-3
