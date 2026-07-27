@@ -4,6 +4,7 @@
  */
 import type Database from 'better-sqlite3';
 import { crawlPoiForAsset, crawlPoiForAllAssets } from './amapPoi.js';
+import { crawlLianjia } from './lianjia.js';
 
 export interface CrawlTaskConfig {
   asset_id?: string;       // 指定资产 ID（单资产模式）
@@ -91,6 +92,30 @@ export async function executeCrawlTask(
         recordsSkipped: 0,
         errors: [(e as Error).message],
         detail: `爬虫执行异常: ${(e as Error).message}`,
+      };
+    }
+  }
+
+  // 链家爬虫（source=lianjia, task_type=competitor）
+  if (source === 'lianjia' && taskType === 'competitor') {
+    try {
+      const r = await crawlLianjia(db, {
+        region: config.region,
+        maxPages: config.limit ?? 3,
+        onProgress: (msg) => console.log(`[lianjia progress] ${msg}`),
+      });
+      return {
+        success: r.errors.length === 0,
+        recordsFetched: r.totalFetched,
+        recordsSaved: r.totalSaved,
+        recordsSkipped: r.totalSkipped,
+        errors: r.errors,
+        detail: r.detail,
+      };
+    } catch (e) {
+      return {
+        success: false, recordsFetched: 0, recordsSaved: 0, recordsSkipped: 0,
+        errors: [(e as Error).message], detail: `链家爬虫异常: ${(e as Error).message}`,
       };
     }
   }

@@ -274,7 +274,7 @@ function CompetitorFeaturePanel({ c }: { c: CompetitorForRadar }) {
       </div>
 
       <div className="mt-2 text-[11px] text-gray-400 leading-relaxed">
-        说明：4 维评分（0~10）由爬虫原始字段（list_price / property_fee / lnglat）经稳定映射模型推导，与本资产 ai_features 中的同维度评分严格对齐，可直接喂入 XGBoost / Few-shot 模型。
+        说明：4 维评分（0~10）由爬虫原始字段（list_price / property_fee / lnglat）经稳定映射模型推导，与本资产 ai_features 中的同维度评分严格对齐，可直接喂入 Hedonic / Few-shot 模型。
       </div>
     </div>
   );

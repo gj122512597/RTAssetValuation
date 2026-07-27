@@ -14,7 +14,6 @@ import {
 import {
   ArrowLeftOutlined,
   FileTextOutlined,
-  DatabaseOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useAssetStore } from '@/stores/assetStore';
@@ -152,13 +151,6 @@ export default function AssetDetailPage() {
 
       {/* 操作行（拆出） */}
       <div className="bg-white border-b border-ink-100 px-6 py-2 flex items-center justify-end gap-2">
-        <Button
-          size="small"
-          icon={<DatabaseOutlined />}
-          onClick={() => navigate('/intel')}
-        >
-          情报站
-        </Button>
         <Button
           size="small"
           type="primary"

@@ -113,7 +113,7 @@ export interface IntakeAsset {
  * - 每条资产有时间序列的交易历史
  * - 用于：
  *   - 客户经理谈价：展示该资产历年价格走势
- *   - 价格趋势预测：XGBoost 时间序列扩展的输入
+ *   - 价格趋势预测：Hedonic 时间序列扩展的输入
  *   - 投资回报测算：过去 N 年实际成交 + 未来预测
  */
 export interface Transaction {
@@ -144,7 +144,7 @@ export interface Transaction {
 }
 
 export interface AssetAiFeatures {
-  /** 1. 基础属性（内部 ERP） */
+  /** 1. 基础属性（内部 ERP + 爬取合并） */
   basic: {
     completion_year: number;
     building_structure: 'frame' | 'brick' | 'mixed';
@@ -152,8 +152,16 @@ export interface AssetAiFeatures {
     parking_spaces: number;
     elevator_count: number;
     land_area_sqm?: number;
+    // ★ 合并自爬取数据（用于hedonic模型）
+    area_ln?: number;                    // ln(面积)
+    floor_info?: string;                 // 楼层/总楼层（高区/中区/低区）
+    decoration_level?: string;           // 装修等级（毛坯/简装/精装/豪装）
+    property_company?: string;           // 物业公司名称
+    property_fee_detail?: number;        // 物业费（元/㎡·月）
+    efficiency_rate?: number;            // 得房率（%）
+    orientation?: string;                // 朝向
   };
-  /** 2. 区位特征（GIS + 地址 NLP） */
+  /** 2. 区位特征（GIS + 地址 NLP + 爬取合并） */
   location: {
     distance_to_cbd_km: number;
     distance_to_airport_km: number;
@@ -163,6 +171,10 @@ export interface AssetAiFeatures {
     business_district_tier: 'A' | 'B' | 'C';
     surrounding_tower_count: number;
     population_density_pkm2: number;
+    // ★ 合并自爬取数据（用于hedonic模型）
+    business_district_name?: string;     // 商圈名称（固定效应）
+    building_name?: string;              // 楼盘名称（固定效应）
+    distance_to_metro_m?: number;        // 距地铁步行距离（米）
   };
   /** 3. 物理状态评分（图像识别 + 描述 NLP） */
   physical: {
@@ -227,6 +239,20 @@ export interface AssetAiFeatures {
     hospitals: number;
     shopping_malls: number;
     parks: number;
+  };
+  /** 11. 交易条件（爬虫：58/安居客/房天下，用于hedonic模型） */
+  transaction_terms?: {
+    includes_invoice: boolean;           // 是否含发票
+    includes_property_fee: boolean;      // 是否含物业费
+    includes_furniture: boolean;         // 是否带办公家具
+    can_register: boolean;               // 是否可注册公司
+    has_24h_ac: boolean;                 // 是否 24h 空调
+  };
+  /** 12. 时间特征（禧泰数据 + 挂牌月度，用于hedonic模型） */
+  temporal?: {
+    listing_month: string;               // 挂牌月度（固定效应）YYYY-MM
+    rent_price_index: number;            // 月度租金指数
+    price_rent_ratio: number;            // 售租比
   };
   /** 10. 各数据源最近同步时间戳 */
   data_sources: {
@@ -309,7 +335,7 @@ export interface ValuationLogic {
 }
 
 export interface ShapContribution {
-  feature: string;       // 英文特征名（XGBoost 标准）
+  feature: string;       // 英文特征名（Hedonic 标准）
   contribution: number;
   source: string;        // 详细取值来源说明（技术型）
   /** 中文业务名 + 中文解释（合规审计用） */

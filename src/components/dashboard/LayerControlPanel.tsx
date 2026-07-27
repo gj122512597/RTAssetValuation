@@ -56,8 +56,6 @@ export default function LayerControlPanel() {
   const showDistricts = useAssetStore((s) => s.showDistricts);
   const showHeatmap = useAssetStore((s) => s.showHeatmap);
   const togglePoi = useAssetStore((s) => s.togglePoi);
-  const demoScale = useAssetStore((s) => s.demoScale);
-  const toggleDemoScale = useAssetStore((s) => s.toggleDemoScale);
   const assets = useAssetStore((s) => s.assets);
 
   const setBusiness = (vals: string[]) => {
@@ -96,25 +94,15 @@ export default function LayerControlPanel() {
         />
       </div>
 
-      {/* ② 数据规模（始终置顶，业务 demo 必备） */}
+      {/* ② 数据规模（合并后统一数据集：手写 25 + 业务 demo 200 = 225 资产） */}
       <div className="px-4 py-2.5 border-b border-ink-100">
         <div className="flex items-center gap-1.5 mb-1.5 text-xs text-ink-500">
           <HeatMapOutlined />
           <span>数据规模</span>
           <span className="ml-auto text-[10px] text-ink-300">已加载 {assets.length}</span>
         </div>
-        <Segmented<'small' | 'real'>
-          block
-          size="small"
-          value={demoScale}
-          onChange={(v) => v !== demoScale && toggleDemoScale()}
-          options={[
-            { label: '25', value: 'small' },
-            { label: '200+300', value: 'real' },
-          ]}
-        />
-        <div className="mt-1 text-[11px] text-ink-500 leading-snug">
-          {demoScale === 'small' ? '小数据集 · 25 资产' : '业务 demo · 200 资产 + 300 竞品'}
+        <div className="text-[11px] text-ink-500 leading-snug">
+          统一数据集 · 225 资产 + 325 竞品（手写 25 + 业务 demo 200/300）
         </div>
       </div>
 

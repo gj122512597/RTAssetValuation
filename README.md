@@ -2,7 +2,7 @@
 
 **面向业务团队 review 的资产盘点 / 竞品对标 / 智能估价 / 报告生成一体工作台**，以 GIS 地图为核心交互载体。
 
-> 状态：**M1+ 全功能 demo** —— PRD §1～§4 全部交付；含 200 资产 / 300 竞品真实数据 demo；XGBoost GBDT 估值模型；高德 AMap JS API v2.0 地图。
+> 状态：**M1+ 全功能 demo** —— PRD §1～§4 全部交付；含 200 资产 / 300 竞品真实数据 demo；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图。
 > 待接入：真实 BFF / 数据库 / NFR §5 信创部署。
 
 ---
@@ -16,7 +16,7 @@
 - [路由](#路由)
 - [高德地图配置](#高德地图配置)
 - [数据规模切换](#数据规模切换)
-- [定价模型：XGBoost GBDT](#定价模型xgb-boost-gbdt)
+- [定价模型：Hedonic 对数线性回归](#定价模型hedonic-对数线性回归)
 - [AI 建模特征（10 组）](#ai-建模特征10-组)
 - [项目演进历程](#项目演进历程)
 - [后续扩展方向](#后续扩展方向)
@@ -30,7 +30,7 @@
 | # | 模块 | 关键能力 | 入口 |
 |---|---|---|---|
 | **M1** | 全域资产 GIS | 25/200 marker 渲染 + 形态分（圆/方/菱 × 红/绿/黄）+ 5 项聚合统计 + 业态/批次/区域图层控制 + 宏观图层（地铁/商圈/热力） | `/` |
-| **M2** | 资产详情钻取 | 画像卡 + AI 特征 10 组 + 双方法定价（市场比较法 / 历史数据法 · XGBoost GBDT）+ 公式溯源 SHAP（含中英对照）+ 竞品对标（左右并列 + 双端联动 + InfoWindow 浮层）+ 合规审查 | `/asset/:id` |
+| **M2** | 资产详情钻取 | 画像卡 + AI 特征 10 组 + 双方法定价（市场比较法 / 历史数据法 · Hedonic 回归）+ 公式溯源 SHAP（含中英对照）+ 竞品对标（左右并列 + 双端联动 + InfoWindow 浮层）+ 合规审查 | `/asset/:id` |
 | **M3** | AI 报告工场 | 一键生成《租金评估建议书》HTML + 八项合规审查评分 + 浏览器原生 `window.print()` 导出 PDF | 详情页 → "生成报告" |
 | **M4** | 外部数据情报 | 爬虫任务管理（6 mock 条）+ 新建任务 + 4 源（贝壳/58/房天下/链家）+ POI 1km 统计 + OCR 评估报告 + 人工调研数据 | `/intel` |
 | **M5** | 非标破冰 | 自动判定非标资产 + 残值/运输系数人工 slider + 4 个最相似案例下钻 + 参考区间（不给硬数字） | 详情页（仅极端非标资产可见） |
@@ -47,7 +47,7 @@
 | 状态 | Zustand 4（单一 store，含 `selectedAssetId` / `selectedCompetitorId` / `hovered*` / 等共享字段） |
 | 图表 | Recharts（雷达/柱状/趋势） |
 | 地图 | **高德 AMap JS API v2.0**（默认，无需 token 也能跑通） |
-| AI 模型 | **XGBoost GBDT（手写 JS inference）**—— 8 棵决策树 / max_depth=4 / lr=0.1 |
+| AI 模型 | **Hedonic 对数线性回归（手写 JS inference）**—— 对数价格 + 特征系数 + 偏效应贡献 |
 | 数据 | 静态 JSON mocks + 运行时程序化生成（`src/utils/extendedMockGenerator.ts`） |
 | **数据后端** | **SQLite + Express**（`server/`），存储爬取的外部数据 |
 | 错误捕获 | `ErrorBoundary` 包裹根 → 渲染错显式展示 |
@@ -104,7 +104,7 @@ src/
 │   ├── amapEngine.ts                     # AMap Loader（带缓存、安全密钥）
 │   ├── aiFeaturesMock.ts                 # 25 条 mock 资产 ai_features 自动补齐
 │   ├── extendedMockGenerator.ts          # ★ 200 资产 + 300 竞品生成器（真实坐标池）
-│   ├── xgbModel.ts                       # ★ XGBoost GBDT ensemble + FEATURE_META
+│   ├── hedonicModel.ts                   # ★ Hedonic 对数线性回归 + FEATURE_META
 │   ├── pricingModels.ts                   # 双方法定价（comparable / historical）
 │   ├── valuation.ts                      # 工程工具 + 报告合规检查
 │   ├── scoring.ts                        # 雷达/相似度计算
@@ -212,9 +212,9 @@ Sidebar 的「图层」tab 顶部有 **数据规模 demo** 切换：
 
 ---
 
-## 定价模型：XGBoost GBDT
+## 定价模型：Hedonic 对数线性回归
 
-`src/utils/xgbModel.ts` 模拟训练好的 XGBoost 模型导出格式：
+`src/utils/hedonicModel.ts` 模拟训练好的 Hedonic 回归模型导出格式：
 
 ```
 {
@@ -229,16 +229,16 @@ Sidebar 的「图层」tab 顶部有 **数据规模 demo** 切换：
 
 | 方法 | 输入维度 | 算法 | R² |
 |---|---|---|---|
-| **市场比较法** `comparative` | 9 维：地铁距离 + 成新 + 装修 + 装修年限 + 权证 + 学区 + 商密 + CBD + 免租 | `XGB_COMPARATIVE`（8 棵决策树 + base_score） | ≈ 0.92 |
-| **历史数据法** `historical` | 4 维：基准价（对数）+ 装修 + 装修年限 + 免租 | `XGB_HISTORICAL` | ≈ 0.85 |
+| **市场比较法** `comparative` | 9 维：地铁距离 + 成新 + 装修 + 装修年限 + 权证 + 学区 + 商密 + CBD + 免租 | `HEDONIC_COMPARATIVE`（对数线性 + 偏效应贡献） | ≈ 0.92 |
+| **历史数据法** `historical` | 4 维：基准价（对数）+ 装修 + 装修年限 + 免租 | `HEDONIC_HISTORICAL` | ≈ 0.85 |
 
-### 为什么 JS 模拟 XGBoost？
+### 为什么手写 JS 推理？
 
 浏览器无法直接加载 Python pickle。要真实加载需：
 1. Python 训练 + 导出 ONNX / JSON dump → 前端 ONNX.js 跑
 2. 或后端 BFF `POST /api/predict` → fetch
 
-MVP 范围内 JS 模拟 GBDT 提供完全相同的可解释性 + 数据结构，零后端依赖。
+MVP 范围内手写 Hedonic 回归提供完全相同的可解释性 + 数据结构，零后端依赖。
 
 ### SHAP 风格贡献
 
@@ -246,13 +246,13 @@ MVP 范围内 JS 模拟 GBDT 提供完全相同的可解释性 + 数据结构，
 
 | 字段 | 含义 |
 |---|---|
-| `feature` | 英文特征名（XGBoost 标准） |
+| `feature` | 英文特征名（Hedonic 标准） |
 | `feature_cn` | ★ 中文业务名 |
 | `contribution` | 贡献值（元），正=抬升价格、负=压低 |
 | `explanation` | ★ 中文业务解释（合规审计用） |
 | `source` | ★ 中文取值来源（自动格式化：`300m` / `8 年` / `¥4.50/㎡·天`等） |
 
-完整逻辑见 `src/utils/xgbModel.ts` 的 `FEATURE_META` 表。
+完整逻辑见 `src/utils/hedonicModel.ts` 的 `FEATURE_META` 表。
 
 ---
 
@@ -287,7 +287,7 @@ MVP 范围内 JS 模拟 GBDT 提供完全相同的可解释性 + 数据结构，
 | M2 | 2026-07 | 资产详情钻取（画像 + 竞品对标 + 智能定价） |
 | M3 | 2026-07 | AI 报告工场 + 完整定价方法 + 爬虫情报站 |
 | M4 | 2026-07 | 外部数据情报 + 非标破冰 + POI |
-| 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（200 资产 + XGBoost GBDT + 中文化 SHAP） |
+| 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（200 资产 + Hedonic 回归 + 中文化 SHAP） |
 
 ---
 
@@ -402,7 +402,7 @@ npm run dev:all
 按 PRD §5 NFR：
 
 - **爬虫调度**：Airflow + scrapy（当前为手动触发占位）
-- **真实 AI**：XGBoost 服务化（LightGBM 备选）+ Few-shot 微调（PyTorch）
+- **真实 AI**：Hedonic 模型服务化（XGBoost / LightGBM 备选）+ Few-shot 微调（PyTorch）
 - **OCR/NLP**：PaddleOCR + HanLP（合同条款抽取）
 - **权限分级**：一线只能看本区域；总部可看全貌
 - **打印/PDF**：从 `window.print()` 升级到 jsPDF + 章骑缝
@@ -489,6 +489,6 @@ docker run -d --name rt-asset -p 80:80 \
 
 1. **国企合规优先**：UI 明确标"使用 {方法}"、5 选 2 勾选器、附件清单、口径审计可追。
 2. **非标给参考区间**：不要 AI 硬算数字，让一线 + 残值/运输系数人工修正。
-3. **AI 特征 schema 对齐**：资产 `ai_features` 与竞品 `scores` 同 4 轴名（交通/配套/房龄/价格），XGBoost 输入 schema 严格一致。
+3. **AI 特征 schema 对齐**：资产 `ai_features` 与竞品 `scores` 同 4 轴名（交通/配套/房龄/价格），Hedonic 输入 schema 严格一致。
 4. **callback ref > useState for DOM**：避开 useState 异步陷阱（关键反模式 #5）。
 5. **每个 useEffect 自治**：markers / 覆盖层 / 浮层都有自己的 `created[]`，cleanup 只清理自己（关键反模式 #3, #9）。

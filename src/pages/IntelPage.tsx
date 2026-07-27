@@ -7,6 +7,7 @@ import { useAssetStore } from '@/stores/assetStore';
 import CrawlerPanel from '@/components/intel/CrawlerPanel';
 import NewCrawlerTaskDrawer from '@/components/intel/NewCrawlerTaskDrawer';
 import PoiCrawlPanel from '@/components/intel/PoiCrawlPanel';
+import LianjiaCrawlPanel from '@/components/intel/LianjiaCrawlPanel';
 
 /**
  * 外部数据"情报站"（M3 P3-1）
@@ -38,6 +39,9 @@ export default function IntelPage() {
       <div className="p-6 max-w-6xl mx-auto space-y-4">
         {/* 高德 POI 真实拉取 */}
         <PoiCrawlPanel />
+
+        {/* 链家写字楼爬虫 */}
+        <LianjiaCrawlPanel />
 
         {tasks.length === 0 ? (
           <EmptyState

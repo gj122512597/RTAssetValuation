@@ -10,6 +10,7 @@ import governmentRouter from './routes/government.js';
 import assetsRouter from './routes/assets.js';
 import dataSourcesRouter from './routes/dataSources.js';
 import statsRouter from './routes/stats.js';
+import modelsRouter from './routes/models.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
@@ -33,6 +34,7 @@ app.use('/api/government', governmentRouter);
 app.use('/api/assets', assetsRouter);
 app.use('/api/data-sources', dataSourcesRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/models', modelsRouter);
 
 // 404
 app.use((_req, res) => {

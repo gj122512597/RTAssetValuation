@@ -23,6 +23,8 @@ import {
   UserOutlined,
   ShopOutlined,
   ClockCircleOutlined,
+  FileProtectOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import type { Asset } from '@/types';
 
@@ -127,6 +129,11 @@ const ScoreTag = ({ value, max = 10 }: { value: number; max?: number }) => {
   );
 };
 
+/** hedonic 模型字段标记 */
+const HedonicTag = () => (
+  <Tag color="geekblue" bordered={false} style={{ fontSize: 9, marginLeft: 4, padding: '0 4px', lineHeight: '16px' }}>hedonic</Tag>
+);
+
 export default function AiFeaturesCard({ asset }: Props) {
   const [activeKeys, setActiveKeys] = useState<string[]>([
     'basic',
@@ -151,7 +158,7 @@ export default function AiFeaturesCard({ asset }: Props) {
         <div className="flex items-center gap-2">
           <span>AI 建模特征</span>
           <Tag color="purple" bordered={false}>
-            XGBoost 输入
+            Hedonic 输入
           </Tag>
           <span className="text-xs text-gray-400 font-normal">PRD §3/§4</span>
         </div>
@@ -180,9 +187,9 @@ export default function AiFeaturesCard({ asset }: Props) {
               <GroupHeader
                 icon={<ApartmentOutlined />}
                 title="1. 基础属性"
-                source="内部 ERP"
+                source="内部 ERP + 爬取"
                 color="blue"
-                count={6}
+                count={13}
               />
             ),
             children: (
@@ -205,6 +212,27 @@ export default function AiFeaturesCard({ asset }: Props) {
                 <Descriptions.Item label="占地面积">
                   {f.basic.land_area_sqm?.toLocaleString()} ㎡
                 </Descriptions.Item>
+                <Descriptions.Item label={<>面积 ln<HedonicTag /></>}>
+                  {f.basic.area_ln?.toFixed(2)}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>楼层信息<HedonicTag /></>}>
+                  {f.basic.floor_info}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>装修等级<HedonicTag /></>}>
+                  {f.basic.decoration_level}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>物业公司<HedonicTag /></>}>
+                  {f.basic.property_company}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>物业费<HedonicTag /></>}>
+                  ¥{f.basic.property_fee_detail}/㎡·月
+                </Descriptions.Item>
+                <Descriptions.Item label={<>得房率<HedonicTag /></>}>
+                  {f.basic.efficiency_rate}%
+                </Descriptions.Item>
+                <Descriptions.Item label={<>朝向<HedonicTag /></>}>
+                  {f.basic.orientation}
+                </Descriptions.Item>
               </Descriptions>
             ),
           },
@@ -215,9 +243,9 @@ export default function AiFeaturesCard({ asset }: Props) {
               <GroupHeader
                 icon={<EnvironmentOutlined />}
                 title="2. 区位特征"
-                source="GIS + 地址 NLP"
+                source="GIS + 地址 NLP + 爬取"
                 color="cyan"
-                count={8}
+                count={11}
               />
             ),
             children: (
@@ -247,6 +275,15 @@ export default function AiFeaturesCard({ asset }: Props) {
                 </Descriptions.Item>
                 <Descriptions.Item label="人口密度">
                   {f.location.population_density_pkm2.toLocaleString()} 人/km²
+                </Descriptions.Item>
+                <Descriptions.Item label={<>商圈名称<HedonicTag /></>}>
+                  {f.location.business_district_name}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>楼盘名称<HedonicTag /></>}>
+                  {f.location.building_name}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>距地铁步行<HedonicTag /></>}>
+                  {f.location.distance_to_metro_m} m
                 </Descriptions.Item>
               </Descriptions>
             ),
@@ -660,6 +697,74 @@ export default function AiFeaturesCard({ asset }: Props) {
               </Descriptions>
             ),
           },
+
+          {
+            key: 'transaction_terms',
+            label: (
+              <GroupHeader
+                icon={<FileProtectOutlined />}
+                title="11. 交易条件"
+                source="爬虫：58/安居客/房天下"
+                color="geekblue"
+                count={5}
+              />
+            ),
+            children: (
+              <Descriptions size="small" column={3} bordered>
+                <Descriptions.Item label={<>含发票<HedonicTag /></>}>
+                  <Tag color={f.transaction_terms?.includes_invoice ? 'green' : 'default'} bordered={false}>
+                    {f.transaction_terms?.includes_invoice ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label={<>含物业费<HedonicTag /></>}>
+                  <Tag color={f.transaction_terms?.includes_property_fee ? 'green' : 'default'} bordered={false}>
+                    {f.transaction_terms?.includes_property_fee ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label={<>带家具<HedonicTag /></>}>
+                  <Tag color={f.transaction_terms?.includes_furniture ? 'green' : 'default'} bordered={false}>
+                    {f.transaction_terms?.includes_furniture ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label={<>可注册<HedonicTag /></>}>
+                  <Tag color={f.transaction_terms?.can_register ? 'green' : 'red'} bordered={false}>
+                    {f.transaction_terms?.can_register ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label={<>24h空调<HedonicTag /></>}>
+                  <Tag color={f.transaction_terms?.has_24h_ac ? 'green' : 'default'} bordered={false}>
+                    {f.transaction_terms?.has_24h_ac ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          },
+
+          {
+            key: 'temporal',
+            label: (
+              <GroupHeader
+                icon={<CalendarOutlined />}
+                title="12. 时间特征"
+                source="禧泰数据 + 挂牌月度"
+                color="geekblue"
+                count={3}
+              />
+            ),
+            children: (
+              <Descriptions size="small" column={3} bordered>
+                <Descriptions.Item label={<>挂牌月份<HedonicTag /></>}>
+                  {f.temporal?.listing_month}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>月度租金指数<HedonicTag /></>}>
+                  {f.temporal?.rent_price_index}
+                </Descriptions.Item>
+                <Descriptions.Item label={<>售租比<HedonicTag /></>}>
+                  {f.temporal?.price_rent_ratio}
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          },
         ]}
       />
     </Card>
@@ -697,7 +802,7 @@ function GroupHeader({
  *  - 客户演示第一眼："AI 给这资产打 87 分"
  */
 function AiOverallScore({ f }: { f: NonNullable<Asset['ai_features']> }) {
-  // 综合得分 = 各维度加权（与 XGBoost importance 权重一致）
+  // 综合得分 = 各维度加权（与 Hedonic 模型权重一致）
   const weights = {
     physical: 0.30, // 物理状态（成新/外立面/采光/通风）
     location: 0.30, // 区位

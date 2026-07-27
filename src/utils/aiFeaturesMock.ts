@@ -66,6 +66,14 @@ export function generateAiFeatures(asset: Asset): AssetAiFeatures {
     parking_spaces,
     elevator_count,
     land_area_sqm: Math.floor(asset.area * r(0.8, 1.2)),
+    // ★ 合并自爬取数据（用于hedonic模型）
+    area_ln: Number(Math.log(asset.area).toFixed(2)),
+    floor_info: `${pick(['高区', '中区', '低区'])}（共${above_ground_floors}层）`,
+    decoration_level: asset.decoration_level ?? pick(['毛坯', '简装', '精装', '豪装']),
+    property_company: pick(['万科物业', '中海物业', '金地物业', '保利物业', '第一太平戴维斯', '戴德梁行']),
+    property_fee_detail: ri(8, 35),
+    efficiency_rate: ri(60, 80),
+    orientation: pick(['南', '北', '东', '西', '东南', '西南']),
   };
 
   // ===== 2. 区位特征（按 region 判定 CBD / 商圈等级） =====
@@ -129,6 +137,10 @@ export function generateAiFeatures(asset: Asset): AssetAiFeatures {
     business_district_tier,
     surrounding_tower_count,
     population_density_pkm2,
+    // ★ 合并自爬取数据（用于hedonic模型）
+    business_district_name: asset.region.replace(/区$/, '') + pick(['CBD', '商圈', '核心区', '商务区']),
+    building_name: asset.name.split('-')[0].split('·')[0],
+    distance_to_metro_m: asset.features.subway_distance < 9999 ? asset.features.subway_distance : ri(800, 5000),
   };
 
   // ===== 3. 物理状态评分 =====
@@ -273,6 +285,22 @@ export function generateAiFeatures(asset: Asset): AssetAiFeatures {
     poi_metadata_version: '2026-Q2',
   };
 
+  // ===== 11. 交易条件（爬虫：58/安居客/房天下，用于hedonic模型） =====
+  const transaction_terms: AssetAiFeatures['transaction_terms'] = {
+    includes_invoice: rand() < 0.6,
+    includes_property_fee: rand() < 0.3,
+    includes_furniture: rand() < 0.55,
+    can_register: rand() < 0.85,
+    has_24h_ac: rand() < 0.35,
+  };
+
+  // ===== 12. 时间特征（禧泰数据 + 挂牌月度，用于hedonic模型） =====
+  const temporal: AssetAiFeatures['temporal'] = {
+    listing_month: `2026-0${ri(1, 7)}`,
+    rent_price_index: Number((100 + r(-5, 15)).toFixed(1)),
+    price_rent_ratio: Number(r(30, 65).toFixed(1)),
+  };
+
   return {
     basic,
     location,
@@ -283,6 +311,8 @@ export function generateAiFeatures(asset: Asset): AssetAiFeatures {
     auction,
     survey,
     poi,
+    transaction_terms,
+    temporal,
     data_sources,
   };
 }

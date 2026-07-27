@@ -276,3 +276,21 @@ LEFT JOIN (
 ) m ON m.task_id = t.id
 LEFT JOIN crawl_logs l
   ON l.task_id = t.id AND l.started_at = m.max_started;
+
+-- ------------------------------------------------------------
+-- 10. Hedonic 定价模型表（训练好的系数持久化）
+--     前端「新资产估价录入」页面由此拉取模型系数
+--     支持通过 PUT /api/models/hedonic/:method 写入真实训练结果
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hedonic_models (
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  method                 TEXT NOT NULL UNIQUE,   -- comparative | historical
+  name                   TEXT,                    -- 模型展示名
+  intercept              REAL,                   -- β0
+  coefficients_json      TEXT,                   -- { feature: βi }
+  feature_means_json     TEXT,                   -- { feature: μi }
+  feature_importance_json TEXT,                  -- { feature: 重要性 }
+  base_score             REAL,                   -- exp(β0 + Σ βi·μi) 基准价
+  r2                     REAL,
+  updated_at             TEXT DEFAULT (datetime('now'))
+);

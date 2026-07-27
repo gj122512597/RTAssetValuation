@@ -10,6 +10,9 @@
  *   const competitors = await api.competitors.list({ region: '北京/朝阳' });
  */
 
+import type { PricingModel } from '@/types';
+import type { HedonicModel } from '@/utils/hedonicModel';
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -139,6 +142,24 @@ export const statsApi = {
     request<{ competitors: unknown[]; transactions: unknown[]; poi: unknown[]; government: unknown[] }>('/stats/source-distribution'),
 };
 
+export const modelsApi = {
+  /** 获取训练好的 Hedonic 模型系数（comparative | historical） */
+  get: (method: PricingModel) =>
+    request<HedonicModel>('/models/hedonic/' + method),
+  /** 服务端推理（模型不外泄时使用）：{ method, features } → { prediction, contributions } */
+  predict: (data: { method: PricingModel; features: Record<string, number> }) =>
+    request<{ prediction: number; contributions: { feature: string; contribution: number; source: string }[] }>(
+      '/models/predict',
+      { method: 'POST', body: JSON.stringify(data) },
+    ),
+  /** 覆盖训练好的模型系数（上传真实训练结果） */
+  put: (method: PricingModel, model: HedonicModel) =>
+    request<{ method: string; message: string; model: HedonicModel }>(
+      '/models/hedonic/' + method,
+      { method: 'PUT', body: JSON.stringify(model) },
+    ),
+};
+
 export const api = {
   competitors: competitorsApi,
   transactions: transactionsApi,
@@ -148,4 +169,5 @@ export const api = {
   dataSources: dataSourcesApi,
   assets: assetsApi,
   stats: statsApi,
+  models: modelsApi,
 };

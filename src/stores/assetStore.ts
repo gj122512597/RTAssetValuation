@@ -96,11 +96,8 @@ interface AssetState {
   togglePoi: (k: 'metro' | 'districts' | 'heatmap') => void;
   toggleModelUsed: (m: PricingModel) => void;
   setCrawlerTaskStatus: (id: string, status: CrawlerTask['status']) => void;
-  toggleDemoScale: () => void;
   resetData: () => void;
 
-  /** M4: 演示规模 */
-  demoScale: 'small' | 'real';
   getAssetById: (id: string | null | undefined) => Asset | undefined;
   getVisibleAssets: () => Asset[];
   getVisibleCompetitors: () => Competitor[];
@@ -146,41 +143,31 @@ export const useAssetStore = create<AssetState>((set, get) => ({
   showDistricts: false,
   showHeatmap: false,
 
-  demoScale: 'small',
-
   loadAll: async () => {
     if (get().loading) return;
     set({ loading: true, error: null });
     try {
-      // 总是要加载的元数据（valuation logic, poi, crawler tasks, intake）
-      const [valuationLogic, poi, crawlerTasks, intakeAssets] = await Promise.all([
+      // 总是要加载的元数据（valuation logic, poi, crawler tasks, intake）+ 手写 25 数据集
+      const [valuationLogic, poi, crawlerTasks, intakeAssets, rawAssets, rawComps] = await Promise.all([
         fetchJSON<ValuationLogic>(valuationUrl),
         fetchJSON<PoiDataset>(poiUrl),
         fetchJSON<CrawlerTask[]>(crawlerTasksUrl),
         fetchJSON<IntakeAsset[]>(intakeAssetsUrl),
+        fetchJSON<Asset[]>(assetsUrl),
+        fetchJSON<Competitor[]>(competitorsUrl),
       ]);
 
-      const scale = get().demoScale;
-      let assets: Asset[];
-      let competitors: Competitor[];
+      // 合并：手写 25 资产（更精细的 images/hidden_risks）+ 业务 demo 200 资产 → 共 225
+      const staticAssets = rawAssets.map((a) => ({
+        ...a,
+        ai_features: a.ai_features ?? generateAiFeatures(a),
+        historical_transactions:
+          a.historical_transactions ?? injectHistoricalTransactions(a).historical_transactions,
+      }));
+      const assets: Asset[] = [...staticAssets, ...generateAssets(200).map(injectHistoricalTransactions)];
 
-      if (scale === 'real') {
-        // 业务团队 demo：基于真实北京/上海坐标池生成 200 资产 + 300 竞品
-        assets = generateAssets(200).map(injectHistoricalTransactions);
-        competitors = generateCompetitors(300);
-      } else {
-        // 默认小数据集：25 资产 + 25 竞品
-        const [rawAssets, rawComps] = await Promise.all([
-          fetchJSON<Asset[]>(assetsUrl),
-          fetchJSON<Competitor[]>(competitorsUrl),
-        ]);
-        assets = rawAssets.map((a) => ({
-          ...a,
-          ai_features: a.ai_features ?? generateAiFeatures(a),
-          historical_transactions: a.historical_transactions ?? injectHistoricalTransactions(a).historical_transactions,
-        }));
-        competitors = rawComps;
-      }
+      // 竞品：手写 25 + 业务 demo 300 → 共 325
+      const competitors: Competitor[] = [...rawComps, ...generateCompetitors(300)];
 
       set({ assets, valuationLogic, competitors, poi, crawlerTasks, intakeAssets, loading: false });
     } catch (e) {
@@ -248,11 +235,6 @@ export const useAssetStore = create<AssetState>((set, get) => ({
       crawlerTasks: s.crawlerTasks.map((t) => (t.id === id ? { ...t, status } : t)),
     })),
 
-  toggleDemoScale: () =>
-    set((s) => {
-      const next = s.demoScale === 'small' ? 'real' : 'small';
-      return { demoScale: next, assets: [], competitors: [] };
-    }),
   resetData: () => set({ assets: [], competitors: [] }),
 
   initDueDiligence: (assetId, checks) =>

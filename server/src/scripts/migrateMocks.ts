@@ -256,6 +256,7 @@ function generateAiFeatures(asset: AssetData): Record<string, unknown> {
   const r = (lo: number, hi: number) => lo + rand() * (hi - lo);
   const ri = (lo: number, hi: number) => Math.floor(r(lo, hi + 1));
   const pk = <T>(arr: T[]): T => arr[ri(0, arr.length - 1)];
+  const ib = (lo: number, hi: number) => Math.floor(rand() * (hi - lo + 1)) + lo;
 
   const isNewBuilding = (asset.last_renovation ?? 2010) > 2020;
   const structure = pk([...STRUCTURES]);
@@ -313,8 +314,20 @@ function generateAiFeatures(asset: AssetData): Record<string, unknown> {
   if (defects.length === 0 && rand() < 0.4) defects.push(pk(RISK_KEYWORDS_POOL));
 
   return {
-    basic: { completion_year: asset.last_renovation ?? ri(1998, 2018), building_structure: structure, above_ground_floors, parking_spaces, elevator_count, land_area_sqm: Math.floor(asset.area * r(0.8, 1.2)) },
-    location: { distance_to_cbd_km: Number(distance_to_cbd_km.toFixed(1)), distance_to_airport_km: Number(distance_to_airport_km.toFixed(1)), school_score, hospital_score, commercial_density, business_district_tier, surrounding_tower_count, population_density_pkm2 },
+    basic: { completion_year: asset.last_renovation ?? ri(1998, 2018), building_structure: structure, above_ground_floors, parking_spaces, elevator_count, land_area_sqm: Math.floor(asset.area * r(0.8, 1.2)),
+      area_ln: Number(Math.log(asset.area).toFixed(2)),
+      floor_info: `${pk(['高区', '中区', '低区'])}（共${above_ground_floors}层）`,
+      decoration_level: asset.decoration_level ?? pk(['毛坯', '简装', '精装', '豪装']),
+      property_company: pk(['万科物业', '中海物业', '金地物业', '保利物业', '第一太平戴维斯']),
+      property_fee_detail: ib(8, 35),
+      efficiency_rate: ib(60, 80),
+      orientation: pk(['南', '北', '东', '西', '东南', '西南']),
+    },
+    location: { distance_to_cbd_km: Number(distance_to_cbd_km.toFixed(1)), distance_to_airport_km: Number(distance_to_airport_km.toFixed(1)), school_score, hospital_score, commercial_density, business_district_tier, surrounding_tower_count, population_density_pkm2,
+      business_district_name: asset.region.replace(/区$/, '') + pk(['CBD', '商圈', '核心区', '商务区']),
+      building_name: asset.name.split('-')[0].split('·')[0],
+      distance_to_metro_m: asset.features.subway_distance < 9999 ? asset.features.subway_distance : ib(800, 5000),
+    },
     physical: { facade_score, structure_score, lighting_score, ventilation_score, noise_db, sunlight_hours, nlp_keywords, nlp_highlights, nlp_risks },
     trade: { trade_count, last_trade_date, last_trade_per_m2, total_volume_yuan, avg_free_rent_days: asset.default_free_rent_days ?? 30, overdue_count, contract_completion_rate, average_deposit_months: ri(1, 3) },
     ocr: { last_valuation_company: pk(VALUATION_COMPANIES), last_valuation_date: `2024-${String(ri(1, 12)).padStart(2, '0')}-${String(ri(1, 28)).padStart(2, '0')}`, last_valuation_per_m2: Number((asset.estimated_price * r(0.92, 1.05)).toFixed(2)), pdf_url: `https://valuation.rtasset.internal/${asset.id}.pdf`, confidence: Number(Math.min(0.99, Math.max(0.7, cond / 10 + r(-0.05, 0.08))).toFixed(2)) },
@@ -322,6 +335,8 @@ function generateAiFeatures(asset: AssetData): Record<string, unknown> {
     auction: { failed_count: asset.certificate_status === 'missing' ? ri(1, 3) : ri(0, 1), last_failed_date: null, lowest_call_price_ratio: 0 },
     survey: { investigator: pk(INVESTIGATORS), survey_date: `2024-0${ri(1, 9)}-${String(ri(1, 28)).padStart(2, '0')}`, site_photos_count: ri(8, 24), defects, manual_adjustment_coef: Number((0.85 + cond / 100 + r(-0.05, 0.1)).toFixed(2)), adjustment_reason: defects.length > 0 ? defects.join('；') + '，建议人工现场复核' : '现场无明显瑕疵，按系统建议执行' },
     poi: { metro_stations: asset.features.subway_distance < 800 ? ri(1, 3) : asset.features.subway_distance < 2500 ? ri(0, 1) : 0, bus_stops: ri(business_district_tier === 'A' ? 8 : 2, business_district_tier === 'A' ? 16 : 8), schools: ri(regionSchool[asset.region] ? Math.round(regionSchool[asset.region]) : 2, (regionSchool[asset.region] ?? 5) + 6), hospitals: ri(0, business_district_tier === 'A' ? 5 : 2), shopping_malls: ri(0, business_district_tier === 'A' ? 4 : 1), parks: ri(0, business_district_tier === 'A' ? 3 : 1) },
+    transaction_terms: { includes_invoice: rand() < 0.6, includes_property_fee: rand() < 0.3, includes_furniture: rand() < 0.55, can_register: rand() < 0.85, has_24h_ac: rand() < 0.35 },
+    temporal: { listing_month: `2026-0${ri(1, 7)}`, rent_price_index: Number((100 + r(-5, 15)).toFixed(1)), price_rent_ratio: Number(r(30, 65).toFixed(1)) },
     data_sources: { erp_synced_at: '2026-07-24T02:00:00', external_crawled_at: '2026-07-23T18:30:00', ocr_extracted_at: `2024-${String(ri(1,12)).padStart(2,'0')}-${String(ri(1,28)).padStart(2,'0')}T09:15:00`, survey_at: `2024-0${ri(1,9)}-${String(ri(1,28)).padStart(2,'0')}T14:30:00`, nlp_at: `2024-0${ri(1,9)}-${String(ri(1,28)).padStart(2,'0')}T16:00:00`, poi_metadata_version: '2026-Q2' },
   };
 }

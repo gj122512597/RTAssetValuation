@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { List, Empty, Spin, Alert, Tabs, Tag, Button, Space } from 'antd';
 import { ListSkeleton, EmptyState } from '@/components/common/StateViews';
-import { FileTextOutlined, GlobalOutlined } from '@ant-design/icons';
+import { ExperimentOutlined, FileTextOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import RiskTag from '@/components/common/RiskTag';
@@ -19,11 +19,10 @@ export default function HomePage() {
   const error = useAssetStore((s) => s.error);
   const loadAll = useAssetStore((s) => s.loadAll);
   const setSelectedId = useAssetStore((s) => s.setSelectedAssetId);
-  const demoScale = useAssetStore((s) => s.demoScale);
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll, demoScale]);
+  }, [loadAll]);
 
   // 用 useMemo 派生过滤结果，避免 store selector 每次返回新数组导致无限渲染
   const selectedBusinessTypes = useAssetStore((s) => s.selectedBusinessTypes);
@@ -111,6 +110,14 @@ export default function HomePage() {
                 onClick={() => navigate('/due-diligence')}
               >
                 尽调工作台
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={<ExperimentOutlined />}
+                onClick={() => navigate('/valuation/new')}
+              >
+                新资产估价
               </Button>
             </Space>
             {/* 右侧数据时间戳 */}

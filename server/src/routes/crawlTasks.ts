@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getDb } from '../db.js';
 import { executeCrawlTask, type CrawlTaskConfig } from '../crawlers/index.js';
+import { crawlLianjia } from '../crawlers/lianjia.js';
 
 const router = Router();
 
@@ -217,6 +218,94 @@ router.get('/:id/logs', (req, res) => {
     'SELECT * FROM crawl_logs WHERE task_id = ? ORDER BY started_at DESC LIMIT ?'
   ).all(req.params.id, limit);
   res.json(rows);
+});
+
+// ===== 链家爬虫专用端点 =====
+
+// 异步触发链家爬取（实时更新 log_detail 供前端轮询）
+router.post('/lianjia/crawl', async (req, res) => {
+  const db = getDb();
+  const { region, max_pages } = req.body as { region?: string; max_pages?: number };
+  const taskId = 'task-lianjia';
+  const startedAt = new Date().toISOString();
+
+  // 创建/更新链家任务
+  db.prepare(`INSERT OR IGNORE INTO crawl_tasks (id, name, source, task_type, status) VALUES (?, '链家爬虫', 'lianjia', 'competitor', 'running')`).run(taskId);
+
+  // 写入 running 日志
+  const logResult = db.prepare(`INSERT INTO crawl_logs (task_id, started_at, status, log_detail) VALUES (?, ?, 'running', ?)`)
+    .run(taskId, startedAt, `开始爬取链家${region ? ` · ${region}` : ''}...\n`);
+  const logId = logResult.lastInsertRowid as number;
+
+  // 立即返回，后台异步执行
+  res.json({ message: '链家爬虫已启动', task_id: taskId, log_id: logId });
+
+  // 后台执行
+  (async () => {
+    const progressLines: string[] = [`开始爬取链家${region ? ` · ${region}` : ''}...`];
+    const flushDetail = () => {
+      db.prepare('UPDATE crawl_logs SET log_detail = ? WHERE id = ?').run(progressLines.join('\n'), logId);
+    };
+
+    try {
+      const result = await crawlLianjia(db, {
+        region,
+        maxPages: max_pages ?? 3,
+        onProgress: (msg) => {
+          progressLines.push(msg);
+          flushDetail();
+        },
+      });
+
+      progressLines.push(`\n=== 完成 ===`);
+      progressLines.push(`总计: 拉取 ${result.totalFetched} 条，入库 ${result.totalSaved} 条，重复 ${result.totalSkipped} 条`);
+      if (result.errors.length > 0) progressLines.push(`错误: ${result.errors.join('; ')}`);
+
+      const finishedAt = new Date().toISOString();
+      db.prepare(`UPDATE crawl_logs SET finished_at = ?, status = ?, records_fetched = ?, records_saved = ?, records_skipped = ?, error_message = ?, log_detail = ? WHERE id = ?`)
+        .run(finishedAt, result.errors.length > 0 ? 'failed' : 'success',
+          result.totalFetched, result.totalSaved, result.totalSkipped,
+          result.errors.length > 0 ? result.errors.join('; ') : null,
+          progressLines.join('\n'), logId);
+      db.prepare(`UPDATE crawl_tasks SET last_run_at = ?, record_count = record_count + ?, status = ?, updated_at = datetime('now') WHERE id = ?`)
+        .run(finishedAt, result.totalSaved, 'running', taskId);
+      console.log(`[lianjia] 完成: ${result.detail}`);
+    } catch (e) {
+      progressLines.push(`\n=== 异常 ===\n${(e as Error).message}`);
+      flushDetail();
+      db.prepare(`UPDATE crawl_logs SET finished_at = ?, status = 'failed', error_message = ?, log_detail = ? WHERE id = ?`)
+        .run(new Date().toISOString(), (e as Error).message, progressLines.join('\n'), logId);
+      db.prepare(`UPDATE crawl_tasks SET status = 'error', updated_at = datetime('now') WHERE id = ?`).run(taskId);
+      console.error(`[lianjia] 异常:`, (e as Error).message);
+    }
+  })();
+});
+
+// 查询链家爬取进度（轮询端点）
+router.get('/lianjia/status', (req, res) => {
+  const db = getDb();
+  const log = db.prepare(`
+    SELECT l.*, t.name AS task_name, t.status AS task_status, t.last_run_at, t.record_count
+    FROM crawl_logs l
+    JOIN crawl_tasks t ON t.id = l.task_id
+    WHERE t.source = 'lianjia'
+    ORDER BY l.id DESC LIMIT 1
+  `).get() as { id: number; task_id: string; started_at: string; finished_at: string | null; status: string; records_fetched: number; records_saved: number; log_detail: string | null; error_message: string | null; task_name: string; record_count: number } | undefined;
+
+  if (!log) return res.json({ status: 'idle', message: '尚未执行过爬取' });
+  res.json(log);
+});
+
+// 链家定时任务配置（创建/更新 cron）
+router.put('/lianjia/schedule', (req, res) => {
+  const db = getDb();
+  const { cron, enabled } = req.body as { cron?: string; enabled?: boolean };
+  const taskId = 'task-lianjia';
+  db.prepare(`INSERT OR IGNORE INTO crawl_tasks (id, name, source, task_type, status) VALUES (?, '链家爬虫', 'lianjia', 'competitor', 'paused')`).run(taskId);
+  const status = enabled ? 'running' : 'paused';
+  db.prepare(`UPDATE crawl_tasks SET schedule_cron = ?, status = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(cron || null, status, taskId);
+  res.json({ message: '定时配置已更新', task_id: taskId, cron, enabled: status === 'running' });
 });
 
 export default router;
