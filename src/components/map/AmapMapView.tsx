@@ -299,8 +299,9 @@ export default function AmapMapView({
       return () => window.clearTimeout(id);
     }
 
+    const detailZoom = 14;
     const map = new (AMap as any).Map(el, {
-      zoom: focusAsset ? 13 : 9.5,
+      zoom: focusAsset ? detailZoom : 9.5,
       center: [center[0], center[1]],
       viewMode: '2D',
       mapStyle: 'amap://styles/normal',
@@ -308,6 +309,11 @@ export default function AmapMapView({
     });
     mapRef.current = map;
     map.on('click', () => setSelectedId(null));
+
+    // 详情模式：把焦点资产显式置于地图中心（zoom 收紧，资产更突出）
+    if (focusAsset) {
+      map.setZoomAndCenter(detailZoom, [focusAsset.lnglat[0], focusAsset.lnglat[1]]);
+    }
 
     return () => {
       safeDestroy(map);

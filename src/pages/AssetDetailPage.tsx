@@ -6,10 +6,9 @@ import {
   Tag,
   Alert,
   Spin,
-  Statistic,
-  Switch,
   Drawer,
   Space,
+  Switch,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -32,6 +31,7 @@ import SimilarCasesPanel from '@/components/detail/SimilarCasesPanel';
 import type { Asset, PricingModel } from '@/types';
 import type { ValuationInput } from '@/utils/pricingModels';
 import { pickCompsInRadius } from '@/utils/shap';
+import { assetClassOf } from '@/utils/assetClass';
 import type { CompetitorForRadar } from '@/types';
 
 export default function AssetDetailPage() {
@@ -102,6 +102,8 @@ export default function AssetDetailPage() {
     );
   }
 
+  const cls = assetClassOf(asset);
+
   const openFormula = (model: PricingModel, input: ValuationInput) => {
     setFormulaPayload({ model, input });
     setFormulaOpen(true);
@@ -124,9 +126,9 @@ export default function AssetDetailPage() {
   }, [asset]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* 顶部 Header：信息行 */}
-      <div className="bg-white border-b border-ink-100 px-6 py-2.5 flex items-center gap-3">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* 顶部 Header：资产名称 + 关键 meta + 主操作 */}
+      <div className="sticky top-0 z-40 bg-white border-b border-ink-100 px-6 py-2.5 flex items-center gap-3">
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => {
@@ -138,23 +140,15 @@ export default function AssetDetailPage() {
         </Button>
         <h2 className="text-lg font-semibold m-0">{asset.name}</h2>
         <Tag color="blue">{asset.type.toUpperCase()}</Tag>
-        <span className="text-xs text-ink-500 truncate">{asset.address}</span>
-        <span className="ml-auto text-[11px] text-ink-500">
-          半径 <b className="text-brand">{radius}km</b> · 竞品{' '}
-          <Switch
-            size="small"
-            checked={showCompetitors}
-            onChange={setShowCompetitors}
-          />
-        </span>
-      </div>
-
-      {/* 操作行（拆出） */}
-      <div className="bg-white border-b border-ink-100 px-6 py-2 flex items-center justify-end gap-2">
+        <Tag color={cls === 'non_standard' ? 'orange' : 'green'}>
+          {cls === 'non_standard' ? '非标资产' : '标准资产'}
+        </Tag>
+        <span className="text-xs text-ink-500 truncate max-w-[36%]">{asset.address}</span>
         <Button
           size="small"
           type="primary"
           icon={<FileTextOutlined />}
+          className="ml-auto"
           onClick={() => {
             setReportCtx({
               businessType: asset.type,
@@ -168,13 +162,23 @@ export default function AssetDetailPage() {
         </Button>
       </div>
 
-      {/* 顶部摘要条（始终显示） */}
-      <AssetSummaryBar asset={asset} />
+      {/* 资产画像：整合 KPI 摘要 + 基础信息 + 画像卡片，置于资产名称下方（完整展示，不内滚） */}
+      <section className="bg-white border-b border-ink-100 flex-shrink-0">
+        <AssetSummaryBar asset={asset} />
+        <div className="px-6 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-500">
+          <span>· {asset.region}</span>
+          <span>· {asset.area.toLocaleString()} ㎡</span>
+          <span>· 出租率 {((asset.occupancy_rate ?? 0) * 100).toFixed(0)}%</span>
+        </div>
+        <div className="px-6 pb-3">
+          <AssetPortraitCard asset={asset} />
+        </div>
+      </section>
 
-      <div className="flex-1 grid grid-cols-5 gap-0 overflow-hidden">
-        {/* 左 60%：地图 + 竞品对比 */}
-        <div className="col-span-3 relative bg-slate-100 border-r border-gray-200 flex flex-col">
-          <div className="flex-1 relative">
+      <div className="grid grid-cols-5 gap-0 overflow-hidden">
+        {/* 左 40%：地图 + 竞品对标（二者双向联动，就近陈列） */}
+        <div className="col-span-2 relative bg-slate-100 border-r border-gray-200 flex flex-col">
+          <div className="h-[55vh] flex-shrink-0 relative">
             <MapView
               focusAsset={asset}
               onMarkerClick={(a) => {
@@ -185,69 +189,87 @@ export default function AssetDetailPage() {
               detailRadiusKm={radius}
               detailCompetitors={showCompetitors ? compsInRadius : undefined}
             />
+            {/* 地图就近控制条：竞品显隐（P2） */}
+            <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur rounded shadow px-2.5 py-1.5 flex items-center gap-2 text-xs">
+              <span className="text-ink-500">竞品</span>
+              <Switch
+                size="small"
+                checked={showCompetitors}
+                onChange={setShowCompetitors}
+              />
+            </div>
           </div>
 
-          {/* 下方：竞品对标 */}
-          <div className="bg-white border-t border-gray-200 max-h-[40%] overflow-y-auto">
+          {/* 竞品对标分析（与地图双向联动，置于地图下方就近陈列，整页滚动不内滚） */}
+          <div className="bg-white border-t border-gray-200">
             <CompetitionRadar asset={asset} />
           </div>
         </div>
 
-        {/* 右 40%：画像 + 定价 + 派生 */}
-        <div className="col-span-2 overflow-y-auto p-4 space-y-3">
-          <AssetPortraitCard asset={asset} />
-
-          <HistoryTrendCard asset={asset} />
-
-          <DueDiligenceOverview asset={asset} />
-
-          <AiFeaturesCard asset={asset} />
-
-          <ValuationPanel asset={asset} onOpenFormula={openFormula} />
-
-          {verdict && (
-            <SimilarCasesPanel asset={asset} />
-          )}
-
-          {/* 合规性审查摘要（M3 P4-2） */}
-          <ComplianceStrip
-            asset={asset}
-            input={{
-              businessType: asset.type,
-              decoration: asset.decoration_level ?? 'standard',
-              freeRentDays: asset.default_free_rent_days ?? 30,
-            }}
-            model={useAssetStore.getState().pricingModel}
-          />
-
-          {/* 快速统计 */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white border rounded-md p-3">
-              <Statistic
-                title={<span className="text-xs">面积</span>}
-                value={asset.area}
-                suffix={<span className="text-xs">㎡</span>}
-                valueStyle={{ fontSize: 18 }}
-              />
+        {/* 右 60%：结论（定价）先行 + 支撑特征 */}
+        <div className="col-span-3 p-4 space-y-4">
+          {/* —— 结论区：智能定价面板，用户首屏先看结论 —— */}
+          <section className="rounded-xl ring-2 ring-brand/30 bg-brand-50/40 p-2.5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-white bg-brand rounded px-2 py-0.5 leading-5">
+                结论
+              </span>
+              <span className="text-xs text-ink-500">资产定价结果先行，下方为特征支撑</span>
             </div>
-            <div className="bg-white border rounded-md p-3">
-              <Statistic
-                title={<span className="text-xs">月租潜力</span>}
-                value={asset.monthly_rent ?? 0}
-                prefix="¥"
-                valueStyle={{ fontSize: 16 }}
-              />
+            <ValuationPanel asset={asset} onOpenFormula={openFormula} />
+            {/* P3：可信度来源闭环提示，引导用户追溯依据 */}
+            <div className="mt-2 flex items-center gap-2 text-xs text-ink-500 border-t border-brand/20 pt-2">
+              <span>
+                基于 <b className="text-brand">{compsInRadius.length}</b> 个圈内竞品 ·{' '}
+                <b className="text-brand">{asset.historical_transactions?.length ?? 0}</b> 笔历史成交测算
+              </span>
+              <Button
+                type="link"
+                size="small"
+                className="ml-auto !p-0"
+                onClick={() =>
+                  openFormula(useAssetStore.getState().pricingModel, {
+                    businessType: asset.type,
+                    decoration: asset.decoration_level ?? 'standard',
+                    freeRentDays: asset.default_free_rent_days ?? 30,
+                  })
+                }
+              >
+                查看方法论 ›
+              </Button>
             </div>
-            <div className="bg-white border rounded-md p-3">
-              <Statistic
-                title={<span className="text-xs">出租率</span>}
-                value={(asset.occupancy_rate ?? 0) * 100}
-                precision={0}
-                suffix="%"
-                valueStyle={{ fontSize: 18 }}
-              />
+          </section>
+
+          {/* —— 支撑特征区：历史 / 尽调 / AI特征 等支撑结论 —— */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-ink-500 tracking-wide">
+                支撑特征
+              </span>
+              <div className="flex-1 h-px bg-ink-100" />
             </div>
-          </div>
+
+            <HistoryTrendCard asset={asset} />
+
+            <DueDiligenceOverview asset={asset} />
+
+            <AiFeaturesCard asset={asset} />
+
+            {verdict && (
+              <SimilarCasesPanel asset={asset} />
+            )}
+
+            {/* 合规性审查摘要（M3 P4-2） */}
+            <ComplianceStrip
+              asset={asset}
+              input={{
+                businessType: asset.type,
+                decoration: asset.decoration_level ?? 'standard',
+                freeRentDays: asset.default_free_rent_days ?? 30,
+              }}
+              model={useAssetStore.getState().pricingModel}
+            />
+          </section>
         </div>
       </div>
 
