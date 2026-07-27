@@ -1,4 +1,4 @@
-# 融通地产 · 租金地图评估系统
+# XX地产 · 租金地图评估系统
 
 **面向业务团队 review 的资产盘点 / 竞品对标 / 智能估价 / 报告生成一体工作台**，以 GIS 地图为核心交互载体。
 
@@ -49,6 +49,7 @@
 | 地图 | **高德 AMap JS API v2.0**（默认，无需 token 也能跑通） |
 | AI 模型 | **XGBoost GBDT（手写 JS inference）**—— 8 棵决策树 / max_depth=4 / lr=0.1 |
 | 数据 | 静态 JSON mocks + 运行时程序化生成（`src/utils/extendedMockGenerator.ts`） |
+| **数据后端** | **SQLite + Express**（`server/`），存储爬取的外部数据 |
 | 错误捕获 | `ErrorBoundary` 包裹根 → 渲染错显式展示 |
 
 ---
@@ -290,17 +291,123 @@ MVP 范围内 JS 模拟 GBDT 提供完全相同的可解释性 + 数据结构，
 
 ---
 
+## 数据后端（SQLite + Express）
+
+项目已内置轻量数据后端 `server/`，用于**存储爬取的外部数据**（竞品挂牌/历史成交/POI/政府数据）。
+
+### 数据库表结构（9 张表 + 1 视图）
+
+| 表名 | 用途 | 对应前端类型 |
+|---|---|---|
+| `data_sources` | 数据源配置（贝壳/58/链家/高德/政府） | - |
+| `crawl_tasks` | 爬虫任务定义与调度 | `CrawlerTask` |
+| `crawl_logs` | 每次爬取运行的日志 | - |
+| `competitor_listings` | 竞品挂牌数据（链家/贝壳） | `Competitor` |
+| `transactions_history` | 历史成交记录 | `Transaction` |
+| `poi_data` | POI 周边配套（高德） | `AssetAiFeatures.poi` |
+| `government_data` | 政府公开数据（规划/土地/政策） | - |
+| `assets` | 资产主表（与前端 mock 对齐） | `Asset` |
+| `asset_competitor_map` | 资产-竞品关联映射 | - |
+| `v_crawl_task_latest` | 视图：任务 + 最近一次日志 | - |
+
+设计要点：
+- 每条爬取数据保留 `raw_json` 原始字段，便于回溯
+- `(source, source_id)` 唯一约束，避免重复爬取
+- 支持空间半径查询（经纬度近似 Haversine）
+- WAL 模式提升并发读性能
+
+### 启动数据后端
+
+```bash
+# 1. 安装后端依赖
+npm run server:install
+
+# 2. 初始化数据库（创建表结构）
+npm run server:db:init
+
+# 3. 导入全部 mock 数据到数据库（25+200 资产 / 25+300 竞品 / 历史成交 / POI / 爬虫任务）
+npm run server:db:migrate
+
+# 4. （可选）写入少量种子数据
+npm run server:db:seed
+
+# 5. 启动后端（http://localhost:3001）
+npm run server:dev
+
+# 或前后端并发启动
+npm run dev:all
+```
+
+> **mock 数据迁移**：`npm run server:db:migrate` 会将前端所有 mock 数据导入 SQLite，包括：
+> - 225 条资产（25 条 `assets.json` + 200 条程序化生成，每条含 10 组 AI 特征）
+> - 325 条竞品（25 条 `competitors.json` + 300 条程序化生成）
+> - 876 条历史成交记录（每条资产 2-7 笔，覆盖 2019-2026）
+> - 26 条 POI（地铁站点/商圈/热力点）
+> - 6 条爬虫任务 + 6 条数据源配置
+>
+> 迁移后前端可通过 `src/api/client.ts` 调用后端 API 读取真实数据库数据。
+
+### REST API
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/health` | 健康检查 |
+| GET/POST/PUT/DELETE | `/api/crawl-tasks` | 爬虫任务管理 |
+| POST | `/api/crawl-tasks/:id/run` | 手动触发爬虫（占位） |
+| GET | `/api/crawl-tasks/:id/logs` | 任务运行日志 |
+| GET/POST/PUT/DELETE | `/api/competitors` | 竞品挂牌数据 |
+| POST | `/api/competitors/batch` | 批量入库（爬虫写入） |
+| GET/POST/DELETE | `/api/transactions` | 历史成交记录 |
+| POST | `/api/transactions/batch` | 批量入库 |
+| GET | `/api/poi` | POI 查询（支持空间半径） |
+| GET | `/api/poi/stats/by-asset/:asset_id` | 按资产聚合 POI 统计 |
+| POST | `/api/poi/batch` | 批量入库 |
+| GET/POST/DELETE | `/api/government` | 政府公开数据 |
+| GET/POST/PUT/DELETE | `/api/assets` | 资产主表 |
+| GET/POST/PUT/DELETE | `/api/data-sources` | 数据源配置 |
+| GET | `/api/stats` | 各表记录数汇总 |
+| GET | `/api/stats/source-distribution` | 按数据源分布统计 |
+
+> 空间查询示例：`GET /api/competitors?lng=116.4648&lat=39.9087&radius_km=3`
+
+### 爬虫接入点
+
+实际爬虫逻辑后续在 `server/src/scripts/crawlers/` 下实现，调用流程：
+1. `POST /api/crawl-tasks/:id/run` 触发任务
+2. 后端写入 `crawl_logs`（status=running）
+3. 调用爬虫模块抓取数据
+4. 通过 `POST /api/{competitors|transactions|poi|government}/batch` 批量入库
+5. 更新 `crawl_logs`（status=success/failed, records_saved）
+
+### 高德 POI 真实拉取（已实现）
+
+支持两种方式拉取真实 POI 数据：
+
+**方式 A：前端拉取（推荐，无需额外 Key）**
+- 使用 AMap JS API 的 PlaceSearch 插件
+- 入口：首页 → 数据情报站 → "高德 POI 真实拉取"面板
+- 支持单资产/批量模式，拉取后通过后端 API 写入 `poi_data` 表
+- 6 类 POI：地铁站 / 公交站 / 学校 / 医院 / 购物中心 / 公园
+
+**方式 B：后端爬虫（需 Web 服务 Key）**
+- 调用高德 Web 服务 API（`restapi.amap.com/v3/place/around`）
+- 命令行：`npm run crawl:poi -- --asset=RZ-2023-003`（单资产）或 `--limit=50`（批量）
+- 需要在 `server/.env` 配置 `AMAP_API_KEY`（Web 服务类型 key，与 JS API key 不同）
+- 申请地址：https://lbs.amap.com/api/webservice/guide/create-project/get-key
+
+---
+
 ## 后续扩展方向
 
 按 PRD §5 NFR：
 
-- **后端 BFF**：NestJS / Spring Boot + 达梦 DM8（信创）/ PostgreSQL+PostGIS
-- **爬虫调度**：Airflow + scrapy
+- **爬虫调度**：Airflow + scrapy（当前为手动触发占位）
 - **真实 AI**：XGBoost 服务化（LightGBM 备选）+ Few-shot 微调（PyTorch）
 - **OCR/NLP**：PaddleOCR + HanLP（合同条款抽取）
 - **权限分级**：一线只能看本区域；总部可看全貌
 - **打印/PDF**：从 `window.print()` 升级到 jsPDF + 章骑缝
 - **离线部署**：麒麟 OS 容器镜像
+- **数据库迁移**：数据量增大后可平滑迁移至 PostgreSQL+PostGIS（表结构兼容）
 
 ---
 
@@ -362,7 +469,7 @@ curl http://localhost:8080/healthz   # → ok（健康检查）
 
 ### 内网/信创生产部署
 
-按 PRD §5 NFR，融通地产最终部署应是：
+按 PRD §5 NFR，XX地产最终部署应是：
 
 ```bash
 # 内网 Harbor 镜像仓库

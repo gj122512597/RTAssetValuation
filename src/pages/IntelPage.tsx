@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import CrawlerPanel from '@/components/intel/CrawlerPanel';
 import NewCrawlerTaskDrawer from '@/components/intel/NewCrawlerTaskDrawer';
+import PoiCrawlPanel from '@/components/intel/PoiCrawlPanel';
 
 /**
  * 外部数据"情报站"（M3 P3-1）
@@ -35,6 +36,9 @@ export default function IntelPage() {
       </div>
 
       <div className="p-6 max-w-6xl mx-auto space-y-4">
+        {/* 高德 POI 真实拉取 */}
+        <PoiCrawlPanel />
+
         {tasks.length === 0 ? (
           <EmptyState
             icon="🛰️"

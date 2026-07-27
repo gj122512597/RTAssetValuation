@@ -53,6 +53,12 @@ npm-debug.log*
 coverage
 .eslintcache
 
+# ===== 后端独立构建（有自己的 Dockerfile）=====
+server/node_modules
+server/dist
+server/data
+server/.env
+
 # ===== 演示 / 文档 =====
 README.md
 docs

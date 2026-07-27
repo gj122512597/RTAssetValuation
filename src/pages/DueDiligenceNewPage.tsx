@@ -6,16 +6,17 @@ import {
   Input,
   Select,
   Button,
-  Space,
-  Steps,
   InputNumber,
   Radio,
   message,
+  Space,
+  Result,
+  Tag,
 } from 'antd';
 import {
   ArrowLeftOutlined,
-  ArrowRightOutlined,
   CheckOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import { useAssetStore } from '@/stores/assetStore';
 import { getTemplateForType } from '@/mocks/due_diligence_templates';
@@ -30,85 +31,80 @@ const SOURCE_OPTIONS: { value: IntakeSource; label: string; description: string 
 ];
 
 const TYPE_OPTIONS = [
-  { value: 'office', label: '写字楼' },
-  { value: 'retail', label: '商铺' },
-  { value: 'hotel', label: '酒店' },
-  { value: 'apartment', label: '公寓' },
-  { value: 'warehouse', label: '仓库' },
-  { value: 'plant', label: '厂房' },
+  { value: 'office', label: '写字楼', emoji: '🏢' },
+  { value: 'retail', label: '商铺', emoji: '🏪' },
+  { value: 'hotel', label: '酒店', emoji: '🏨' },
+  { value: 'apartment', label: '公寓', emoji: '🏠' },
+  { value: 'warehouse', label: '仓库', emoji: '📦' },
+  { value: 'plant', label: '厂房', emoji: '🏭' },
 ];
 
 /**
- * 新建尽调（/due-diligence/new）
- *  - 3 步：选业态 → 基本信息 → 启动
- *  - 启动后跳到流程页 /due-diligence/:id
+ * 新建尽调 v2（review 后重构）
+ *  - 单屏式（一页填完），去掉 3 步 wizard
+ *  - 必填标红 *，提交后 1 秒跳到流程页
  */
 export default function DueDiligenceNewPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const intakeAssets = useAssetStore((s) => s.intakeAssets);
-  const setIntakeStatus = useAssetStore((s) => s.setIntakeStatus);
 
-  const handleNext = async () => {
+  const handleStart = async () => {
     try {
-      await form.validateFields();
-      setStep((s) => s + 1);
-    } catch {
-      message.error('请先填写必填项');
-    }
-  };
+      setSubmitting(true);
+      const values = await form.validateFields();
+      const id = `RT-INT-2026-${String(intakeAssets.length + 100).padStart(3, '0')}`;
+      const tpl = getTemplateForType(values.type);
 
-  const handleStart = () => {
-    const values = form.getFieldsValue();
-    // 生成新 ID
-    const id = `RT-INT-2026-${String(intakeAssets.length + 100).padStart(3, '0')}`;
-    const tpl = getTemplateForType(values.type);
-
-    // 用 store 的 setState 直接添加
-    useAssetStore.setState((s) => ({
-      intakeAssets: [
-        {
-          id,
-          name: values.name,
-          type: values.type,
-          region: values.region,
-          address: values.address,
-          area: values.area,
-          initial_price: values.initial_price,
-          source: values.source,
-          priority: values.priority || 'mid',
-          submitted_by: '当前用户',
-          submitted_at: new Date().toISOString(),
-          due_date: values.due_date,
-          status: 'in_progress',
-          progress: {
-            assetId: id,
-            templateId: tpl.id,
-            startedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            checks: tpl.categories.flatMap((cat) =>
-              cat.items.map((item) => ({
-                id: item.id,
-                category: cat.name,
-                label: item.label,
-                required: item.required,
-                result: 'pending' as const,
-                photos: [],
-              }))
-            ),
-            completion: 0,
-            score: 0,
-            requiredDone: false,
+      useAssetStore.setState((s) => ({
+        intakeAssets: [
+          {
+            id,
+            name: values.name,
+            type: values.type,
+            region: values.region,
+            address: values.address,
+            area: values.area,
+            initial_price: values.initial_price,
+            source: values.source,
+            priority: values.priority || 'mid',
+            submitted_by: '当前用户',
+            submitted_at: new Date().toISOString(),
+            due_date: values.due_date,
             status: 'in_progress',
+            progress: {
+              assetId: id,
+              templateId: tpl.id,
+              startedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              checks: tpl.categories.flatMap((cat) =>
+                cat.items.map((item) => ({
+                  id: item.id,
+                  category: cat.name,
+                  label: item.label,
+                  required: item.required,
+                  result: 'pending' as const,
+                  photos: [],
+                }))
+              ),
+              completion: 0,
+              score: 0,
+              requiredDone: false,
+              status: 'in_progress',
+            },
           },
-        },
-        ...s.intakeAssets,
-      ],
-    }));
+          ...s.intakeAssets,
+        ],
+      }));
 
-    message.success(`已创建尽调任务 ${id}`);
-    setTimeout(() => navigate(`/due-diligence/${id}`), 500);
+      message.success(`已创建 ${id}，跳转至流程页`);
+      setTimeout(() => navigate(`/due-diligence/${id}`), 400);
+    } catch {
+      message.error('请检查必填项');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -117,131 +113,123 @@ export default function DueDiligenceNewPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/due-diligence')}>
           返回工作台
         </Button>
+        <RocketOutlined style={{ color: '#1f6feb' }} />
         <h2 className="text-lg font-semibold m-0">新建尽调</h2>
+        <Tag color="orange" bordered={false}>业务升级 · 标准化流程</Tag>
       </div>
 
-      <div className="flex-1 p-6 max-w-4xl mx-auto w-full">
-        <Card>
-          <Steps
-            current={step}
-            items={[
-              { title: '选择业态' },
-              { title: '基本信息' },
-              { title: '启动尽调' },
-            ]}
-            className="!mb-6"
-          />
+      <div className="flex-1 p-6 max-w-3xl mx-auto w-full">
+        <Card className="!shadow-card">
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ source: 'military_transfer', priority: 'mid' }}
+            requiredMark
+            onFinish={handleStart}
+          >
+            <Form.Item
+              label="资产来源"
+              name="source"
+              rules={[{ required: true, message: '请选择来源' }]}
+            >
+              <Select size="large" options={SOURCE_OPTIONS.map((o) => ({
+                value: o.value,
+                label: `${o.label}${o.description ? ' · ' + o.description : ''}`,
+              }))} />
+            </Form.Item>
 
-          <Form form={form} layout="vertical" initialValues={{ source: 'military_transfer', priority: 'mid' }}>
-            {step === 0 && (
-              <div className="space-y-3">
-                <Form.Item label="业态" name="type" rules={[{ required: true, message: '请选择业态' }]}>
-                  <Radio.Group className="w-full" buttonStyle="solid">
-                    <div className="grid grid-cols-3 gap-2">
-                      {TYPE_OPTIONS.map((o) => (
-                        <Radio.Button key={o.value} value={o.value} className="!text-center">
-                          {o.label}
-                        </Radio.Button>
-                      ))}
-                    </div>
-                  </Radio.Group>
-                </Form.Item>
-                <Form.Item label="资产来源" name="source" rules={[{ required: true }]}>
-                  <Select
-                    options={SOURCE_OPTIONS.map((o) => ({
-                      value: o.value,
-                      label: `${o.label}${o.description ? ' · ' + o.description : ''}`,
-                    }))}
-                  />
-                </Form.Item>
-                <div className="text-right">
-                  <Button type="primary" onClick={handleNext} icon={<ArrowRightOutlined />}>
-                    下一步
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-3">
-                <Form.Item label="资产名（暂用）" name="name" rules={[{ required: true }]}>
-                  <Input placeholder="如：朝阳 CBD 写字楼 A 座" />
-                </Form.Item>
-                <Form.Item label="区域" name="region" rules={[{ required: true }]}>
-                  <Input placeholder="如：朝阳区" />
-                </Form.Item>
-                <Form.Item label="地址（选填）" name="address">
-                  <Input placeholder="详细地址" />
-                </Form.Item>
-                <div className="grid grid-cols-2 gap-3">
-                  <Form.Item label="面积（㎡）" name="area">
-                    <InputNumber className="!w-full" min={0} />
-                  </Form.Item>
-                  <Form.Item label="卖方/移交方报价（元/㎡·天）" name="initial_price">
-                    <InputNumber className="!w-full" min={0} step={0.1} />
-                  </Form.Item>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Form.Item label="优先级" name="priority">
-                    <Radio.Group>
-                      <Radio.Button value="high">高</Radio.Button>
-                      <Radio.Button value="mid">中</Radio.Button>
-                      <Radio.Button value="low">低</Radio.Button>
-                    </Radio.Group>
-                  </Form.Item>
-                  <Form.Item label="尽调截止日" name="due_date">
-                    <Input type="date" />
-                  </Form.Item>
-                </div>
-                <div className="flex justify-between">
-                  <Button onClick={() => setStep(0)}>上一步</Button>
-                  <Button type="primary" onClick={handleNext} icon={<ArrowRightOutlined />}>
-                    下一步
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-3">
-                <Card type="inner" className="!bg-ink-50">
-                  <div className="text-sm space-y-1">
-                    <div>
-                      业态：<b>{form.getFieldValue('type')}</b>
-                    </div>
-                    <div>
-                      资产名：<b>{form.getFieldValue('name')}</b>
-                    </div>
-                    <div>
-                      区域：<b>{form.getFieldValue('region')}</b>
-                    </div>
-                    {form.getFieldValue('area') && (
-                      <div>
-                        面积：<b>{form.getFieldValue('area').toLocaleString()} ㎡</b>
+            <Form.Item
+              label="业态"
+              name="type"
+              rules={[{ required: true, message: '请选择业态' }]}
+            >
+              <Radio.Group className="w-full" buttonStyle="solid">
+                <div className="grid grid-cols-3 gap-2">
+                  {TYPE_OPTIONS.map((o) => (
+                    <Radio.Button
+                      key={o.value}
+                      value={o.value}
+                      className="!text-center !h-auto !py-2"
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-lg">{o.emoji}</span>
+                        <span className="text-xs">{o.label}</span>
                       </div>
-                    )}
-                    {form.getFieldValue('initial_price') && (
-                      <div>
-                        卖方报价：<b>¥{form.getFieldValue('initial_price')}/㎡·天</b>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-                <div className="text-xs text-ink-500">
-                  启动后系统会基于业态自动加载对应模板（写字楼 50 项 / 商铺 30 项 / ...），逐项现场勾选。
+                    </Radio.Button>
+                  ))}
                 </div>
-                <div className="flex justify-between">
-                  <Button onClick={() => setStep(1)}>上一步</Button>
-                  <Button
-                    type="primary"
-                    onClick={handleStart}
-                    icon={<CheckOutlined />}
-                  >
-                    启动尽调
-                  </Button>
-                </div>
-              </div>
-            )}
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              label="资产名（暂用）"
+              name="name"
+              rules={[{ required: true, message: '请输入资产名' }]}
+            >
+              <Input size="large" placeholder="如：朝阳 CBD 写字楼 A 座" />
+            </Form.Item>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Form.Item
+                label="区域"
+                name="region"
+                rules={[{ required: true, message: '请输入区域' }]}
+              >
+                <Input size="large" placeholder="如：朝阳区" />
+              </Form.Item>
+              <Form.Item label="截止日期" name="due_date">
+                <Input type="date" size="large" />
+              </Form.Item>
+            </div>
+
+            <Form.Item label="详细地址（选填）" name="address">
+              <Input placeholder="如：北京市朝阳区光华路 50 号" />
+            </Form.Item>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Form.Item label="面积（㎡）" name="area">
+                <InputNumber className="!w-full" size="large" min={0} placeholder="可选" />
+              </Form.Item>
+              <Form.Item label="卖方/移交方报价（元/㎡·天）" name="initial_price">
+                <InputNumber
+                  className="!w-full"
+                  size="large"
+                  min={0}
+                  step={0.1}
+                  placeholder="可选"
+                />
+              </Form.Item>
+            </div>
+
+            <Form.Item label="优先级" name="priority">
+              <Radio.Group size="large">
+                <Radio.Button value="high">高</Radio.Button>
+                <Radio.Button value="mid">中</Radio.Button>
+                <Radio.Button value="low">低</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+
+            <div className="bg-blue-50/40 border border-blue-100 rounded-md p-3 mb-3 text-xs text-ink-700">
+              <div className="font-semibold mb-1">提示</div>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>提交后系统会基于业态自动加载对应模板（写字楼 50 项 / 商铺 30 项 / ...）</li>
+                <li>必填项未填完不能入库；存在"不通过"项建议拒收</li>
+                <li>跑完整套清单才能完成 → 自动入池</li>
+              </ol>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => navigate('/due-diligence')}>取消</Button>
+              <Button
+                type="primary"
+                size="large"
+                icon={<CheckOutlined />}
+                onClick={handleStart}
+                loading={submitting}
+              >
+                启动尽调
+              </Button>
+            </div>
           </Form>
         </Card>
       </div>

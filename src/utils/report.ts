@@ -85,7 +85,7 @@ export function buildComplianceReport(
       label: '数据来源已声明（内部 ERP + 外部爬虫）',
       passed: true,
       weight: 10,
-      detail: '内部：融通租数系统；外部：贝壳/58/房天下（已脱敏）',
+      detail: '内部：XX租数系统；外部：贝壳/58/房天下（已脱敏）',
     },
     {
       key: 'uncertainty',

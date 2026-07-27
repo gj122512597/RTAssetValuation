@@ -1,4 +1,27 @@
 services:
+  # ===== 数据后端（SQLite + Express）=====
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rt-asset-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3001}:3001"
+    volumes:
+      # SQLite 数据库持久化
+      - rt-asset-db:/app/data
+    environment:
+      - PORT=3001
+      - DB_PATH=/app/data/rt_asset.db
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===== 前端 Web（Nginx 静态托管）=====
   web:
     build:
       context: .
@@ -14,12 +37,17 @@ services:
     ports:
       # 主机端口:容器端口；改 8080 可以避免与系统 80 冲突
       - "${PORT:-8080}:80"
+    depends_on:
+      - api
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  rt-asset-db:
 
   # 可选：加一个 watchtower 自动更新镜像
   # watchtower:

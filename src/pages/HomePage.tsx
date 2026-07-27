@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
-import { List, Empty, Spin, Alert, Tabs, Tag, Button } from 'antd';
+import { List, Empty, Spin, Alert, Tabs, Tag, Button, Space } from 'antd';
 import { ListSkeleton, EmptyState } from '@/components/common/StateViews';
-import { FileTextOutlined } from '@ant-design/icons';
+import { FileTextOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAssetStore } from '@/stores/assetStore';
 import RiskTag from '@/components/common/RiskTag';
@@ -79,24 +79,46 @@ export default function HomePage() {
 
       {/* 顶部统计栏 */}
       <div className="absolute top-4 left-4 right-[376px] z-20">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div className="bg-white/95 rounded-lg shadow-card px-3.5 py-1.5 flex items-center gap-3">
-            <div>
-              <div className="text-xs font-semibold text-ink-900 leading-tight">
-                融通地产 · 全域资产 GIS 总览
+        <div className="mb-2">
+          <div className="bg-white/95 rounded-lg shadow-card px-4 py-2 flex items-center gap-3">
+            {/* 品牌标识 */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                XX
               </div>
-              <div className="text-[10px] text-ink-500 leading-tight">Data: 2026-07-24 · M1+</div>
+              <div className="leading-tight">
+                <span className="text-sm font-bold text-ink-900">XX地产</span>
+                <span className="text-ink-300 mx-1.5">·</span>
+                <span className="text-xs text-ink-600">全域资产 GIS 总览</span>
+              </div>
+            </div>
+            {/* 分隔线 */}
+            <div className="h-7 w-px bg-gray-200" />
+            {/* 导航入口 */}
+            <Space size="small">
+              <Button
+                type="text"
+                size="small"
+                icon={<GlobalOutlined />}
+                onClick={() => navigate('/intel')}
+              >
+                数据情报站
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => navigate('/due-diligence')}
+              >
+                尽调工作台
+              </Button>
+            </Space>
+            {/* 右侧数据时间戳 */}
+            <div className="ml-auto text-[10px] text-ink-400 leading-tight text-right">
+              <div>Data: 2026-07-24</div>
+              <div className="text-ink-300">M1+ · v0.1</div>
             </div>
           </div>
-          <Button
-            type="default"
-            size="small"
-            icon={<FileTextOutlined />}
-            onClick={() => navigate('/due-diligence')}
-            className="!bg-white/95"
-          >
-            尽调工作台
-          </Button>
         </div>
         <StatBar />
         {error && (

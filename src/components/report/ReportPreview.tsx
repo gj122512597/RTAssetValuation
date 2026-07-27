@@ -316,7 +316,7 @@ export default function ReportPreview({ asset, input, model }: Props) {
           ))}
         </div>
         <div className="mt-3 text-[11px] text-gray-400 text-right">
-          编制说明：本报告由融通地产·租金地图评估系统（M3 版本）自动生成，请核价人员复核签字后归档。
+          编制说明：本报告由XX地产·租金地图评估系统（M3 版本）自动生成，请核价人员复核签字后归档。
         </div>
       </section>
     </Card>

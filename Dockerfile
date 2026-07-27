@@ -25,7 +25,7 @@ RUN npm run build
 # 阶段 2 用 nginx alpine 做静态托管
 FROM nginx:1.27-alpine
 
-LABEL maintainer="融通地产"
+LABEL maintainer="XX地产"
 LABEL description="租金地图评估系统（MVP）— Nginx 静态托管"
 LABEL org.opencontainers.image.source="https://github.com/gj122512597/rt-asset-valuation"
 LABEL org.opencontainers.image.licenses="Proprietary"

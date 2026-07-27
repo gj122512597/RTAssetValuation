@@ -11,9 +11,11 @@ import {
   Statistic,
   Row,
   Col,
+  Input,
+  Select,
   Tooltip,
-  Segmented,
-  Badge,
+  Table,
+  Tag as AntTag,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -25,6 +27,8 @@ import {
   ClockCircleOutlined,
   RightOutlined,
   FireOutlined,
+  SearchOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { useAssetStore } from '@/stores/assetStore';
 import type { IntakeAsset, IntakeSource, IntakeStatus } from '@/types';
@@ -37,356 +41,406 @@ const SOURCE_LABELS: Record<IntakeSource, { label: string; color: string }> = {
   other: { label: '其他', color: 'default' },
 };
 
-const STATUS_LABELS: Record<
+const STATUS_META: Record<
   IntakeStatus,
-  { label: string; color: string; icon: React.ReactNode }
+  { label: string; color: string; icon: React.ReactNode; desc: string }
 > = {
-  todo: { label: '待办', color: 'blue', icon: <ClockCircleOutlined /> },
-  in_progress: { label: '进行中', color: 'orange', icon: <ExclamationCircleOutlined /> },
-  completed: { label: '已完成', color: 'green', icon: <CheckCircleOutlined /> },
-  rejected: { label: '已拒收', color: 'red', icon: <CloseCircleOutlined /> },
+  todo: { label: '待办', color: 'blue', icon: <ClockCircleOutlined />, desc: '尚未开始现场尽调' },
+  in_progress: { label: '进行中', color: 'orange', icon: <ExclamationCircleOutlined />, desc: '客户经理在跑清单' },
+  completed: { label: '已完成', color: 'green', icon: <CheckCircleOutlined />, desc: '已入库' },
+  rejected: { label: '已拒收', color: 'red', icon: <CloseCircleOutlined />, desc: '不通过' },
 };
 
-const PRIORITY_LABELS = {
+const PRIORITY_META = {
   high: { label: '高', color: 'red' },
   mid: { label: '中', color: 'orange' },
   low: { label: '低', color: 'default' },
 } as const;
 
 /**
- * 尽调工作台（独立模块 / 独立路由）
- *  - 3 个 Tab：待办 / 进行中 / 已完成
- *  - 点入 → /due-diligence/:id（流程页）
- *  - 新建 → /due-diligence/new
+ * 尽调工作台 v2（review 后重构）
  *
- *  业务流：
- *   [部队接收] → todo  → 用户开始尽调 → in_progress
- *                → 完成 → completed → 自动入池（result_asset_id）
+ * 主要改动：
+ *  1. 去掉"全部" tab（3 个状态 tab + rejected 在底部折叠）
+ *  2. 卡片列表 → Table 紧凑表格（一行/资产，可排序、可筛选）
+ *  3. 顶部 KPI 简化为 2 个：紧急待办 + 进行中
+ *  4. 加搜索 + 筛选（业态/区域/来源）
+ *  5. 排序：priority（高→低）→ due_date（近→远）
+ *  6. 当前 Tab = 唯一主视图，不再嵌套"全部"
+ *  7. "新建尽调"按钮显眼（右上角大按钮）
  */
 export default function DueDiligenceCenter() {
   const navigate = useNavigate();
   const intakeAssets = useAssetStore((s) => s.intakeAssets);
   const setIntakeStatus = useAssetStore((s) => s.setIntakeStatus);
-  const [tab, setTab] = useState<IntakeStatus | 'all'>('todo');
 
-  /** 按 status 分组 */
-  const grouped = useMemo(() => {
-    const result: Record<IntakeStatus, IntakeAsset[]> = {
-      todo: [],
-      in_progress: [],
-      completed: [],
-      rejected: [],
-    };
-    for (const i of intakeAssets) {
-      result[i.status].push(i);
+  const [tab, setTab] = useState<IntakeStatus>('todo');
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState<string | undefined>();
+  const [filterRegion, setFilterRegion] = useState<string | undefined>();
+  const [filterSource, setFilterSource] = useState<IntakeSource | undefined>();
+
+  /** 按 status 分组 + 搜索 + 筛选 + 排序 */
+  const visible = useMemo(() => {
+    let result = intakeAssets.filter((i) => i.status === tab);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          i.id.toLowerCase().includes(q) ||
+          (i.address?.toLowerCase().includes(q) ?? false)
+      );
     }
-    // 待办排优先级
-    for (const arr of Object.values(result)) {
-      arr.sort((a, b) => {
-        const ap = a.priority === 'high' ? 0 : a.priority === 'mid' ? 1 : 2;
-        const bp = b.priority === 'high' ? 0 : b.priority === 'mid' ? 1 : 2;
-        return ap - bp;
-      });
-    }
+    if (filterType) result = result.filter((i) => i.type === filterType);
+    if (filterRegion) result = result.filter((i) => i.region === filterRegion);
+    if (filterSource) result = result.filter((i) => i.source === filterSource);
+    // 排序：priority 高→低，due_date 近→远
+    const pOrder = { high: 0, mid: 1, low: 2 } as const;
+    result.sort((a, b) => {
+      const ap = pOrder[a.priority];
+      const bp = pOrder[b.priority];
+      if (ap !== bp) return ap - bp;
+      const ad = a.due_date ?? '9999-99-99';
+      const bd = b.due_date ?? '9999-99-99';
+      return ad.localeCompare(bd);
+    });
     return result;
-  }, [intakeAssets]);
+  }, [intakeAssets, tab, search, filterType, filterRegion, filterSource]);
 
-  const counts = useMemo(() => {
-    return {
-      todo: grouped.todo.length,
-      in_progress: grouped.in_progress.length,
-      completed: grouped.completed.length,
-      rejected: grouped.rejected.length,
-      total: intakeAssets.length,
-    };
-  }, [grouped, intakeAssets]);
+  /** 各状态统计 */
+  const counts = useMemo(
+    () => ({
+      todo: intakeAssets.filter((i) => i.status === 'todo').length,
+      in_progress: intakeAssets.filter((i) => i.status === 'in_progress').length,
+      completed: intakeAssets.filter((i) => i.status === 'completed').length,
+      rejected: intakeAssets.filter((i) => i.status === 'rejected').length,
+      high: intakeAssets.filter((i) => i.priority === 'high' && i.status !== 'completed').length,
+    }),
+    [intakeAssets]
+  );
 
-  const startCheck = (i: IntakeAsset) => {
+  /** 全部区域 / 来源去重 */
+  const allRegions = useMemo(
+    () => Array.from(new Set(intakeAssets.map((i) => i.region))).filter(Boolean),
+    [intakeAssets]
+  );
+  const allTypes = useMemo(
+    () => Array.from(new Set(intakeAssets.map((i) => i.type))).filter(Boolean),
+    [intakeAssets]
+  );
+
+  const handleStart = (i: IntakeAsset) => {
     if (i.status === 'todo') setIntakeStatus(i.id, 'in_progress');
     navigate(`/due-diligence/${i.id}`);
-  };
-
-  const viewResult = (i: IntakeAsset) => {
-    if (i.result_asset_id) navigate(`/asset/${i.result_asset_id}`);
   };
 
   return (
     <div className="min-h-screen bg-ink-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-ink-100 px-6 py-3 flex items-center gap-3">
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/')}
-        >
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
           返回 Dashboard
         </Button>
-        <FileTextOutlined style={{ color: '#1f6feb' }} />
+        <FileTextOutlined style={{ color: '#1f6feb', fontSize: 18 }} />
         <h2 className="text-lg font-semibold m-0">尽调工作台</h2>
         <Tag color="orange" bordered={false}>业务升级 · 标准化流程</Tag>
-        <span className="ml-auto text-xs text-ink-500">
-          {counts.total} 个待尽调资产
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="primary"
+            size="middle"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/due-diligence/new')}
+          >
+            新建尽调
+          </Button>
+        </div>
       </div>
 
-      {/* 顶部 KPI */}
+      {/* 顶部 KPI：只突出 actionable 状态（待办 + 进行中 + 高优先级） */}
       <div className="px-6 py-3 bg-white border-b border-ink-100">
         <Row gutter={[12, 12]}>
-          <Col span={6}>
-            <Card size="small" className="!shadow-none !border-ink-100">
+          <Col span={8}>
+            <Card
+              size="small"
+              className="!shadow-card !border-blue-200"
+              style={{ background: counts.todo > 0 ? '#eaf1ff' : undefined }}
+            >
               <Statistic
-                title={<span className="text-xs">待办</span>}
+                title={
+                  <span className="text-xs flex items-center gap-1">
+                    <ClockCircleOutlined /> 待办
+                  </span>
+                }
                 value={counts.todo}
                 suffix="条"
-                prefix={<ClockCircleOutlined style={{ color: '#1f6feb' }} />}
-                valueStyle={{ fontSize: 22, color: '#1f6feb' }}
+                valueStyle={{ fontSize: 28, color: counts.todo > 0 ? '#1f6feb' : '#94a3b8', fontWeight: 700 }}
               />
+              {counts.todo > 0 && (
+                <div className="text-[11px] text-blue-600 mt-0.5">→ 立即开始 →</div>
+              )}
             </Card>
           </Col>
-          <Col span={6}>
-            <Card size="small" className="!shadow-none !border-ink-100">
+          <Col span={8}>
+            <Card size="small" className="!shadow-card">
               <Statistic
-                title={<span className="text-xs">进行中</span>}
+                title={
+                  <span className="text-xs flex items-center gap-1">
+                    <ExclamationCircleOutlined /> 进行中
+                  </span>
+                }
                 value={counts.in_progress}
                 suffix="条"
-                prefix={<ExclamationCircleOutlined style={{ color: '#f59e0b' }} />}
-                valueStyle={{ fontSize: 22, color: '#f59e0b' }}
+                valueStyle={{ fontSize: 28, color: '#f59e0b', fontWeight: 700 }}
               />
             </Card>
           </Col>
-          <Col span={6}>
-            <Card size="small" className="!shadow-none !border-ink-100">
+          <Col span={8}>
+            <Card
+              size="small"
+              className="!shadow-card !border-red-200"
+              style={{ background: counts.high > 0 ? '#fef2f2' : undefined }}
+            >
               <Statistic
-                title={<span className="text-xs">已完成</span>}
-                value={counts.completed}
+                title={
+                  <span className="text-xs flex items-center gap-1">
+                    <FireOutlined /> 高优先级（未完成）
+                  </span>
+                }
+                value={counts.high}
                 suffix="条"
-                prefix={<CheckCircleOutlined style={{ color: '#22c55e' }} />}
-                valueStyle={{ fontSize: 22, color: '#22c55e' }}
+                valueStyle={{ fontSize: 28, color: counts.high > 0 ? '#ef4444' : '#94a3b8', fontWeight: 700 }}
               />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small" className="!shadow-none !border-ink-100">
-              <Statistic
-                title={<span className="text-xs">已拒收</span>}
-                value={counts.rejected}
-                suffix="条"
-                prefix={<CloseCircleOutlined style={{ color: '#ef4444' }} />}
-                valueStyle={{ fontSize: 22, color: '#ef4444' }}
-              />
+              {counts.high > 0 && (
+                <div className="text-[11px] text-red-600 mt-0.5">⚠ 截止日近 + 高优先级</div>
+              )}
             </Card>
           </Col>
         </Row>
       </div>
 
-      {/* 主区 */}
+      {/* 主区：Tab + 搜索/筛选 + 表格 */}
       <div className="flex-1 p-6">
-        <div className="bg-white rounded-lg shadow-card border border-ink-100">
-          <div className="px-4 pt-3 pb-0 flex items-center gap-3">
+        <Card className="!shadow-card">
+          {/* Tab 头 */}
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <Tabs
-              className="flex-1"
               activeKey={tab}
-              onChange={(k) => setTab(k as IntakeStatus | 'all')}
+              onChange={(k) => setTab(k as IntakeStatus)}
               items={[
-                {
-                  key: 'todo',
-                  label: (
-                    <Badge count={counts.todo} size="small" offset={[6, 0]}>
-                      <span>待办</span>
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'in_progress',
-                  label: (
-                    <Badge count={counts.in_progress} size="small" offset={[6, 0]}>
-                      <span>进行中</span>
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'completed',
-                  label: (
-                    <Badge count={counts.completed} size="small" offset={[6, 0]}>
-                      <span>已完成</span>
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'rejected',
-                  label: (
-                    <Badge count={counts.rejected} size="small" offset={[6, 0]}>
-                      <span>已拒收</span>
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'all',
-                  label: `全部 ${counts.total}`,
-                },
+                { key: 'todo', label: `待办 (${counts.todo})` },
+                { key: 'in_progress', label: `进行中 (${counts.in_progress})` },
+                { key: 'completed', label: `已完成 (${counts.completed})` },
+                { key: 'rejected', label: `已拒收 (${counts.rejected})` },
               ]}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate('/due-diligence/new')}
-            >
-              新建尽调
-            </Button>
-          </div>
-
-          <div className="p-4">
-            {tab === 'all' ? (
-              <Tabs
-                size="small"
-                items={(['todo', 'in_progress', 'completed', 'rejected'] as const).map((s) => ({
-                  key: s,
-                  label: `${STATUS_LABELS[s].label} (${counts[s]})`,
-                  children: <IntakeList list={grouped[s]} onStart={startCheck} onViewResult={viewResult} />,
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                placeholder="搜索资产名 / ID / 地址"
+                prefix={<SearchOutlined />}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                allowClear
+                style={{ width: 220 }}
+              />
+              <Select
+                placeholder="业态"
+                value={filterType}
+                onChange={setFilterType}
+                allowClear
+                style={{ width: 110 }}
+                options={allTypes.map((t) => ({ value: t, label: t }))}
+              />
+              <Select
+                placeholder="区域"
+                value={filterRegion}
+                onChange={setFilterRegion}
+                allowClear
+                style={{ width: 110 }}
+                options={allRegions.map((r) => ({ value: r, label: r }))}
+              />
+              <Select
+                placeholder="来源"
+                value={filterSource}
+                onChange={(v) => setFilterSource(v as IntakeSource)}
+                allowClear
+                style={{ width: 110 }}
+                options={Object.entries(SOURCE_LABELS).map(([k, v]) => ({
+                  value: k,
+                  label: v.label,
                 }))}
               />
-            ) : (
-              <IntakeList
-                list={grouped[tab as IntakeStatus]}
-                onStart={startCheck}
-                onViewResult={viewResult}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IntakeList({
-  list,
-  onStart,
-  onViewResult,
-}: {
-  list: IntakeAsset[];
-  onStart: (i: IntakeAsset) => void;
-  onViewResult: (i: IntakeAsset) => void;
-}) {
-  if (list.length === 0) {
-    return <Empty description="暂无该状态资产" />;
-  }
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {list.map((i) => {
-        const src = SOURCE_LABELS[i.source];
-        const st = STATUS_LABELS[i.status];
-        const pr = PRIORITY_LABELS[i.priority];
-        const progress = i.progress;
-        const completionPct = progress
-          ? Math.round((progress.completion ?? 0) * 100)
-          : 0;
-        return (
-          <Card
-            key={i.id}
-            size="small"
-            className="!shadow-card hover:!shadow-pop transition-shadow"
-            bordered
-            title={
-              <div className="flex items-center gap-2">
-                <Tag color={st.color} bordered={false} icon={st.icon as React.ReactNode}>
-                  {st.label}
-                </Tag>
-                {i.priority === 'high' && (
-                  <Tag color="red" bordered={false} icon={<FireOutlined />}>
-                    高优先级
-                  </Tag>
-                )}
-                <span className="text-xs text-ink-500 ml-auto">{i.id}</span>
-              </div>
-            }
-          >
-            <div className="space-y-2">
-              <div>
-                <div className="text-sm font-semibold text-ink-900 truncate">
-                  {i.name}
-                </div>
-                <div className="text-xs text-ink-500 mt-0.5 truncate">{i.address}</div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                <Tag bordered={false} color={src.color}>
-                  {src.label}
-                </Tag>
-                <span className="text-ink-500">{i.region}</span>
-                {i.area && (
-                  <span className="text-ink-500">{i.area.toLocaleString()}㎡</span>
-                )}
-                {i.initial_price && (
-                  <span className="text-brand font-semibold">¥{i.initial_price}</span>
-                )}
-              </div>
-              {progress && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[11px] text-ink-500">
-                    <span>完成度 {completionPct}%</span>
-                    <span>
-                      必检 {progress.checks.filter((c) => {
-                        // 需要从模板查 required
-                        return progress.checks.find((ck) => ck.id === c.id)?.required;
-                      }).length}/{/* 这部分简化 */} 项
-                    </span>
-                  </div>
-                  <Progress percent={completionPct} size="small" showInfo={false} />
-                </div>
+              {(filterType || filterRegion || filterSource || search) && (
+                <Button
+                  size="small"
+                  type="text"
+                  onClick={() => {
+                    setFilterType(undefined);
+                    setFilterRegion(undefined);
+                    setFilterSource(undefined);
+                    setSearch('');
+                  }}
+                >
+                  清除筛选
+                </Button>
               )}
-              <div className="text-[10px] text-ink-500 flex items-center gap-1">
-                <span>提交人：{i.submitted_by}</span>
-                <span>· {i.submitted_at.slice(0, 10)}</span>
-                {i.due_date && (
-                  <Tag color={pr.color} bordered={false} className="!m-0">
-                    截止 {i.due_date}
-                  </Tag>
-                )}
-              </div>
-              <div className="pt-1">
-                {i.status === 'todo' && (
-                  <Button
-                    type="primary"
-                    block
-                    icon={<RightOutlined />}
-                    onClick={() => onStart(i)}
-                  >
-                    开始尽调
-                  </Button>
-                )}
-                {i.status === 'in_progress' && (
-                  <Button
-                    type="primary"
-                    block
-                    icon={<RightOutlined />}
-                    onClick={() => onStart(i)}
-                  >
-                    继续尽调
-                  </Button>
-                )}
-                {i.status === 'completed' && (
-                  <Button
-                    block
-                    type="default"
-                    onClick={() => onStart(i)}
-                    icon={<FileTextOutlined />}
-                  >
-                    查看报告
-                  </Button>
-                )}
-                {i.status === 'rejected' && (
-                  <Button
-                    block
-                    danger
-                    onClick={() => onStart(i)}
-                  >
-                    查看拒收理由
-                  </Button>
-                )}
-              </div>
             </div>
-          </Card>
-        );
-      })}
+          </div>
+
+          {/* 表格主体 */}
+          <Table
+            rowKey="id"
+            dataSource={visible}
+            pagination={false}
+            size="middle"
+            locale={{
+              emptyText: <Empty description={`当前筛选下无${STATUS_META[tab].label}资产`} />,
+            }}
+            columns={[
+              {
+                title: 'ID',
+                dataIndex: 'id',
+                width: 130,
+                fixed: 'left',
+                render: (v: string) => (
+                  <code className="text-[11px] text-ink-500 bg-ink-50 px-1 rounded">
+                    {v}
+                  </code>
+                ),
+              },
+              {
+                title: '资产',
+                dataIndex: 'name',
+                render: (_v, r) => (
+                  <div>
+                    <div className="font-medium text-ink-900">{r.name}</div>
+                    <div className="text-[11px] text-ink-500 mt-0.5 truncate max-w-md">
+                      {r.address ?? '—'}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                title: '业态 / 区域',
+                width: 180,
+                render: (_v, r) => (
+                  <div>
+                    <Tag color="blue" bordered={false}>{r.type}</Tag>
+                    <span className="text-[11px] text-ink-500 ml-1">{r.region}</span>
+                    {r.area && (
+                      <div className="text-[11px] text-ink-500 mt-0.5">
+                        {r.area.toLocaleString()} ㎡
+                      </div>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                title: '来源 / 优先级',
+                width: 160,
+                render: (_v, r) => (
+                  <div className="space-y-1">
+                    <Tag color={SOURCE_LABELS[r.source].color} bordered={false}>
+                      {SOURCE_LABELS[r.source].label}
+                    </Tag>
+                    <div>
+                      <Tag color={PRIORITY_META[r.priority].color} bordered={false}>
+                        {PRIORITY_META[r.priority].label}优先
+                      </Tag>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                title: '提交人',
+                dataIndex: 'submitted_by',
+                width: 90,
+              },
+              {
+                title: '截止',
+                dataIndex: 'due_date',
+                width: 110,
+                render: (v: string | undefined) => {
+                  if (!v) return <span className="text-xs text-ink-300">—</span>;
+                  const days = Math.ceil(
+                    (new Date(v).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                  );
+                  const color =
+                    days < 0 ? 'red' : days < 7 ? 'orange' : 'default';
+                  return (
+                    <Tooltip title={days < 0 ? `已逾期 ${-days} 天` : `还有 ${days} 天`}>
+                      <Tag color={color} bordered={false}>{v.slice(5)}</Tag>
+                    </Tooltip>
+                  );
+                },
+              },
+              {
+                title: '进度',
+                width: 120,
+                render: (_v, r) => {
+                  if (r.status === 'todo' || !r.progress) {
+                    return <span className="text-xs text-ink-300">未开始</span>;
+                  }
+                  const p = Math.round(r.progress.completion * 100);
+                  return (
+                    <Progress
+                      percent={p}
+                      size="small"
+                      strokeColor={p === 100 ? '#22c55e' : '#1f6feb'}
+                    />
+                  );
+                },
+              },
+              {
+                title: '操作',
+                width: 110,
+                fixed: 'right',
+                render: (_v, r) => {
+                  if (r.status === 'todo') {
+                    return (
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={() => handleStart(r)}
+                      >
+                        开始
+                      </Button>
+                    );
+                  }
+                  if (r.status === 'in_progress') {
+                    return (
+                      <Button size="small" type="primary" onClick={() => handleStart(r)}>
+                        继续
+                      </Button>
+                    );
+                  }
+                  if (r.status === 'completed') {
+                    return r.result_asset_id ? (
+                      <Button
+                        size="small"
+                        type="link"
+                        onClick={() => navigate(`/asset/${r.result_asset_id}`)}
+                      >
+                        查看资产
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-ink-500">已入池</span>
+                    );
+                  }
+                  if (r.status === 'rejected') {
+                    return (
+                      <Button size="small" type="link" onClick={() => handleStart(r)}>
+                        查看理由
+                      </Button>
+                    );
+                  }
+                  return null;
+                },
+              },
+            ]}
+          />
+        </Card>
+      </div>
     </div>
   );
 }

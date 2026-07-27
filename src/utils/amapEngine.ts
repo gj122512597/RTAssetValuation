@@ -29,7 +29,7 @@ export async function loadAMap(key?: string, securityJsCode?: string): Promise<A
       const AMap = (await loader.load({
         key,
         version: '2.0',
-        plugins: ['AMap.Marker', 'AMap.Text', 'AMap.Polyline', 'AMap.Polygon', 'AMap.Circle'],
+        plugins: ['AMap.Marker', 'AMap.Text', 'AMap.Polyline', 'AMap.Polygon', 'AMap.Circle', 'AMap.PlaceSearch'],
       })) as unknown as typeof window.AMap;
       window.AMap = AMap;
       return { AMap };

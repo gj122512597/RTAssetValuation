@@ -293,7 +293,7 @@ export interface Competitor {
   layout?: string;
 }
 
-/** 融通地产评估系统当前支持的两种定价方法 */
+/** XX地产评估系统当前支持的两种定价方法 */
 export type PricingModel = 'comparative' | 'historical';
 
 export interface ValuationLogic {
