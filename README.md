@@ -2,14 +2,14 @@
 
 **面向业务团队 review 的资产盘点 / 竞品对标 / 智能估价 / 报告生成一体工作台**，以 GIS 地图为核心交互载体。
 
-> 状态：**M1+ 全功能 demo** —— PRD §1～§4 全部交付；含 200 资产 / 300 竞品真实数据 demo；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图。
-> 待接入：真实 BFF / 数据库 / NFR §5 信创部署。
+> 状态：**全功能可运行系统** —— PRD §1～§4 全部交付；内置 **SQLite + Express 数据后端**（225 资产 / 325 竞品 / 876 历史成交 / 26 POI 已全量入库）；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图；新增 **新资产估价录入 / 尽职调查中心 / 建模介绍** 页面。
+> 待接入：真实 BFF 联调、NFR §5 信创部署（麒麟 OS 镜像已就绪）、爬虫调度 Airflow。
 
 ---
 
 ## 目录
 
-- [核心能力（5 大模块）](#核心能力5-大模块)
+- [核心能力（8 大模块）](#核心能力8-大模块)
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
 - [项目结构](#项目结构)
@@ -23,7 +23,7 @@
 
 ---
 
-## 核心能力（5 大模块）
+## 核心能力（8 大模块）
 
 按 PRD §2：
 
@@ -34,6 +34,9 @@
 | **M3** | AI 报告工场 | 一键生成《租金评估建议书》HTML + 八项合规审查评分 + 浏览器原生 `window.print()` 导出 PDF | 详情页 → "生成报告" |
 | **M4** | 外部数据情报 | 爬虫任务管理（6 mock 条）+ 新建任务 + 4 源（贝壳/58/房天下/链家）+ POI 1km 统计 + OCR 评估报告 + 人工调研数据 | `/intel` |
 | **M5** | 非标破冰 | 自动判定非标资产 + 残值/运输系数人工 slider + 4 个最相似案例下钻 + 参考区间（不给硬数字） | 详情页（仅极端非标资产可见） |
+| **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` |
+| **M7** | 尽职调查中心 | 尽调任务管理 + 新建尽调单 + 资产接收 intake 下钻 | `/due-diligence` |
+| **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页 | `/modeling-intro` |
 
 ---
 
@@ -148,8 +151,13 @@ src/
 │
 └── pages/
     ├── HomePage.tsx                      # Dashboard（顶部 StatBar + 右侧 Sidebar + 全屏地图）
-    ├── AssetDetailPage.tsx               # 详情（左 60 地图 + 右 40 信息）
-    └── IntelPage.tsx                     # 情报站（/intel 路由）
+    ├── AssetDetailPage.tsx               # 详情（结论先行：头部+画像 → 左[地图+竞品对标]/右[结论+支撑特征]）
+    ├── IntelPage.tsx                     # 情报站（/intel 爬虫任务管理）
+    ├── NewAssetValuationPage.tsx         # 新资产估价录入（/valuation/new）
+    ├── DueDiligenceCenter.tsx            # 尽调中心（/due-diligence）
+    ├── DueDiligenceNewPage.tsx           # 新建尽调（/due-diligence/new）
+    ├── DueDiligenceIntakePage.tsx        # 资产接收下钻（/due-diligence/:id）
+    └── ModelingIntroPage.tsx             # 建模介绍（/modeling-intro）
 ```
 
 ---
@@ -158,9 +166,14 @@ src/
 
 | 路径 | 页面 |
 |---|---|
-| `/` | Dashboard HomePage（25/200 资产 + 5 聚合统计 + 业态/批次/POI 控件） |
-| `/asset/:id` | AssetDetailPage（智能定价 + AI 特征 + 报告 Drawer） |
+| `/` | Dashboard HomePage（225 资产 + 5 聚合统计 + 业态/批次/POI 控件） |
+| `/asset/:id` | AssetDetailPage（结论先行：智能定价 + AI 特征 + 报告 Drawer + 竞品对标） |
+| `/valuation/new` | NewAssetValuationPage（新资产估价录入：周边竞品检索 + Hedonic 测算 + SHAP） |
 | `/intel` | IntelPage（爬虫任务管理 + 新建任务） |
+| `/due-diligence` | DueDiligenceCenter（尽调任务中心） |
+| `/due-diligence/new` | DueDiligenceNewPage（新建尽调单） |
+| `/due-diligence/:id` | DueDiligenceIntakePage（资产接收下钻） |
+| `/modeling-intro` | ModelingIntroPage（Hedonic 模型说明） |
 | `*` | 重定向到 `/` |
 
 ---
@@ -192,38 +205,37 @@ VITE_AMAP_SECURITY=你的安全码
 
 ---
 
-## 数据规模切换
+## 数据集（已合并为统一规模）
 
-Sidebar 的「图层」tab 顶部有 **数据规模 demo** 切换：
+前端 `assetStore.loadAll()` **固定合并**两套数据源，提供统一的真实分布数据集，不再提供规模切换：
 
-| 模式 | 数据量 | 何时用 |
-|---|---|---|
-| 小数据集 25 | 25 资产 + 25 竞品（mocks/*.json） | UI walkthrough、性能基准、轻量 review |
-| 真实分布 200+300 | 200 资产 + 300 竞品（程序化生成） | 业务 demo、密度展示 |
+- **资产 225 条**：手写 25 条（`assets.json`，ID `RZ-2023-xxx`）+ 程序化生成 200 条（`RT-xxxx`），每条含 12 组 AI 特征
+- **竞品 325 条**：手写 25 条（`C-xxx`）+ 程序化生成 300 条（`C-xxxx`）
+- **历史成交 876 条**：每条资产 2–7 笔，覆盖 2019–2026
+- **POI 26 条**：地铁站 / 商圈 / 热力点
 
-切换会立刻清空 assets / competitors 并触发 `loadAll()` 重新加载。
+> ID 前缀区分（手写 `RZ-/C-` 与生成 `RT-/C-`）保证无冲突。Sidebar「图层」tab 的「数据规模」区现为**只读说明**，展示已加载数量。
 
-**真实分布的 200 资产**来自 90+ 真实北京/上海坐标池：
+**200 条生成资产的真实坐标池**（90+ 真实北京/上海点位）：
 - 北京（55+）：国贸 CBD / 望京 / 中关村 / 西二旗 / 金融街 / 丽泽 / 亦庄等
 - 上海（35+）：陆家嘴 / 张江高科 / 徐家汇 / 静安寺 / 人民广场 / 虹桥等
 - 其他（6）：深圳福田 / 广州天河 / 杭州钱江新城 / 成都天府等
-
-每条资产自带完整 `ai_features` 10 组，按业态/区域/状态真实分布。
 
 ---
 
 ## 定价模型：Hedonic 对数线性回归
 
-`src/utils/hedonicModel.ts` 模拟训练好的 Hedonic 回归模型导出格式：
+`src/utils/hedonicModel.ts` 导出训练好的 Hedonic 回归模型（与后端 `hedonic_models` 表结构一致）：
 
-```
-{
-  base_score: 4.05,
-  feature_importance: { subway_distance: 0.28, condition_score: 0.22, ... },
-  trees: [
-    { nodes: [{ feature, threshold, left, right, leaf? }, ...] },  // 树 1
-    ...                                                              // 树 8
-  ]
+```ts
+interface HedonicModel {
+  name: string;
+  intercept: number;                          // β0
+  coefficients: Record<string, number>;       // βi 系数
+  feature_means: Record<string, number>;      // 各特征训练集均值（偏效应分解用）
+  feature_importance: Record<string, number>; // |βi × std_i| 标准化重要性
+  base_score: number;                         // exp(β0 + Σ βi·mean_i) = 基准价
+  r2: number;
 }
 ```
 
@@ -256,24 +268,30 @@ MVP 范围内手写 Hedonic 回归提供完全相同的可解释性 + 数据结�
 
 ---
 
-## AI 建模特征（10 组）
+## AI 建模特征（12 组，81 字段）
 
-按 PRD §3 数据需求 + §4 特征工程设计：
+按 PRD §3 数据需求 + §4 特征工程设计，并在迭代中合并爬虫字段、新增交易条件 / 时间特征两组：
 
-| # | 分组 | 数据来源 | UI 卡片标题 |
+| # | 分组 | 数据来源 | 字段数 |
 |---|---|---|---|
-| 1 | 基础属性 | 内部 ERP | "基础属性" |
-| 2 | 区位特征 | GIS + 地址 NLP | "区位特征" |
-| 3 | 物理状态 | 图像识别 + 描述 NLP | "物理状态评分" |
-| 4 | 历史交易 | 内部 ERP | "历史交易" |
-| 5 | OCR 报告 | PDF 抽取 | "评估公司报告 (OCR)" |
-| 6 | 竞品挂牌 | 爬虫（贝壳/58/房天下/链家） | "竞品挂牌" |
-| 7 | 流拍记录 | 内部 ERP | "流拍记录" |
-| 8 | 人工调研 | 一线 App 录入 | "人工调研" |
-| 9 | POI | 宏观 GIS | "POI 1km 内" |
-| 10 | 时间戳 | 各源 | "数据来源时间戳" |
+| 1 | 基础属性 | 内部 ERP + 爬取 | 13 |
+| 2 | 区位特征 | GIS + 地址 NLP | 11 |
+| 3 | 物理状态 | 图像识别 + NLP | 9 |
+| 4 | 历史交易 | 内部 ERP | 8 |
+| 5 | 评估公司报告 (OCR) | PDF 抽取 | 4 |
+| 6 | 竞品挂牌 | 爬虫：贝壳/58/房天下 | 6 |
+| 7 | 流拍记录 | 内部 ERP | 3 |
+| 8 | 人工调研 | 一线 App 录入 | 6 |
+| 9 | POI 1km 内 | 宏观 GIS | 6 |
+| 10 | 数据来源时间戳 | 各源最近同步 | 6 |
+| 11 | 交易条件 | 爬虫：58/安居客 | 5 |
+| 12 | 时间特征 | 禧泰 + 挂牌月度 | 3 |
 
-每组在 UI 上分 Collapsible Panel，每列**标注数据来源**（合规审计），可被 SHAP/LIME 解释。
+UI 表现（`AiFeaturesCard`）：
+- **所有分组默认平铺可见**（去除"全部塞进下拉"的反模式），核心分组整宽置顶、其余响应式两列网格；
+- **标品 / 非标差异化布局**：标品优先展示区位/竞品/交易，非标优先展示人工调研/流拍/风险并高亮人工修正系数；
+- 每条字段**标注数据来源** + Hedonic 模型输入标记（`hedonic` 蓝标），可被 SHAP/LIME 解释；
+- 顶部「AI 综合评分」总览（0–100）+ 4 维雷达缩略 + Top3 风险点。
 
 ---
 
@@ -287,7 +305,9 @@ MVP 范围内手写 Hedonic 回归提供完全相同的可解释性 + 数据结�
 | M2 | 2026-07 | 资产详情钻取（画像 + 竞品对标 + 智能定价） |
 | M3 | 2026-07 | AI 报告工场 + 完整定价方法 + 爬虫情报站 |
 | M4 | 2026-07 | 外部数据情报 + 非标破冰 + POI |
-| 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（200 资产 + Hedonic 回归 + 中文化 SHAP） |
+| 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（225 资产合并 + Hedonic 回归 + 中文化 SHAP + 数据后端 SQLite） |
+| 新功能 | 2026-07-27 | 新资产估价录入 `/valuation/new`、尽职调查中心 `/due-diligence`、建模介绍 `/modeling-intro` |
+| UX 重构 | 2026-07-27 | 详情页"结论先行"布局：头部 + 资产画像 → 左[地图+竞品对标] / 右[结论(定价)+支撑特征]；竞品对标与地图就近联动；消除双重滚动；结论区加可信度来源闭环 |
 
 ---
 
