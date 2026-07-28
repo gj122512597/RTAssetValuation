@@ -69,6 +69,17 @@ export default function AssetDetailPage() {
     [asset, competitors, radius]
   );
 
+  const verdict = useMemo(() => {
+    if (!asset) return false;
+    const t = asset;
+    return (
+      t.days_vacant > 180 ||
+      t.features.condition_score <= 3 ||
+      t.features.subway_distance > 5000 ||
+      (t.hidden_risks ?? []).includes('military_legacy')
+    );
+  }, [asset]);
+
   if (loading && !asset) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -113,17 +124,6 @@ export default function AssetDetailPage() {
     setReportCtx(input);
     setReportOpen(true);
   };
-
-  const verdict = useMemo(() => {
-    // 简易：当非标时显示破冰；通过 import 复用 utilities
-    const t = asset;
-    return (
-      t.days_vacant > 180 ||
-      t.features.condition_score <= 3 ||
-      t.features.subway_distance > 5000 ||
-      (t.hidden_risks ?? []).includes('military_legacy')
-    );
-  }, [asset]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
