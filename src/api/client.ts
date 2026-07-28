@@ -125,7 +125,7 @@ export const dataSourcesApi = {
 };
 
 export const assetsApi = {
-  list: (params?: { region?: string; type?: string; status?: string }) =>
+  list: (params?: { region?: string; type?: string; status?: string; received_batch?: string }) =>
     request<unknown[]>('/assets' + qs(params || {})),
   get: (id: string) => request<unknown>(`/assets/${id}`),
   create: (data: Record<string, unknown>) =>
@@ -146,18 +146,41 @@ export const modelsApi = {
   /** 获取训练好的 Hedonic 模型系数（comparative | historical） */
   get: (method: PricingModel) =>
     request<HedonicModel>('/models/hedonic/' + method),
-  /** 服务端推理（模型不外泄时使用）：{ method, features } → { prediction, contributions } */
+  /** 服务端独立推理（模型系数不外泄）：{ method, features } → { prediction, contributions, name, r2 } */
   predict: (data: { method: PricingModel; features: Record<string, number> }) =>
-    request<{ prediction: number; contributions: { feature: string; contribution: number; source: string }[] }>(
-      '/models/predict',
-      { method: 'POST', body: JSON.stringify(data) },
-    ),
+    request<{
+      prediction: number;
+      contributions: { feature: string; contribution: number; source: string }[];
+      name?: string;
+      r2?: number;
+    }>('/models/predict', { method: 'POST', body: JSON.stringify(data) }),
   /** 覆盖训练好的模型系数（上传真实训练结果） */
   put: (method: PricingModel, model: HedonicModel) =>
     request<{ method: string; message: string; model: HedonicModel }>(
       '/models/hedonic/' + method,
       { method: 'PUT', body: JSON.stringify(model) },
     ),
+};
+
+export const trainingSamplesApi = {
+  /** 拉取训练样本池（内置 + 上传 + 手动新增） */
+  list: () => request<Record<string, unknown>[]>('/training-samples'),
+  /** 新增一条（source: upload / manual） */
+  create: (data: Record<string, unknown>, source?: 'upload' | 'manual') =>
+    request<Record<string, unknown>>('/training-samples', {
+      method: 'POST',
+      body: JSON.stringify({ data, source: source ?? 'manual' }),
+    }),
+  /** 更新一条 */
+  update: (id: string, data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/training-samples/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ data }),
+    }),
+  /** 删除一条 */
+  delete: (id: string) => request<void>(`/training-samples/${id}`, { method: 'DELETE' }),
+  /** 触发 Python 离线重训（全量重训含新样本） */
+  refit: () => request<{ ok: boolean; stdout: string }>('/training-samples/refit', { method: 'POST' }),
 };
 
 export const api = {
@@ -170,4 +193,5 @@ export const api = {
   assets: assetsApi,
   stats: statsApi,
   models: modelsApi,
+  trainingSamples: trainingSamplesApi,
 };

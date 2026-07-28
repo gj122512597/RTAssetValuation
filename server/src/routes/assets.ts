@@ -14,12 +14,13 @@ const router = Router();
 
 router.get('/', (req, res) => {
   const db = getDb();
-  const { region, type, status } = req.query;
+  const { region, type, status, received_batch } = req.query;
   let sql = 'SELECT * FROM assets WHERE 1=1';
   const params: unknown[] = [];
   if (region) { sql += ' AND region = ?'; params.push(String(region)); }
   if (type) { sql += ' AND type = ?'; params.push(String(type)); }
   if (status) { sql += ' AND status = ?'; params.push(String(status)); }
+  if (received_batch) { sql += ' AND received_batch = ?'; params.push(String(received_batch)); }
   sql += ' ORDER BY updated_at DESC LIMIT 500';
   const rows = db.prepare(sql).all(...params);
   res.json(rows);

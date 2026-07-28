@@ -11,6 +11,12 @@ import { loadAMap, getAmapKey, getAmapSecurity } from './amapEngine';
 import { api } from '@/api/client';
 import type { Asset } from '@/types';
 
+/** 高德 JS API 命名空间的最小类型（window.AMap 在 vite-env.d.ts 中声明为 unknown，这里给出调用所需的方法） */
+type AMapNamespace = {
+  plugin: (pluginName: string, callback: () => void) => void;
+  [className: string]: unknown;
+};
+
 /** POI 类型编码映射 */
 const POI_TYPES: Array<{ category: string; subType: string; typecode: string }> = [
   { category: 'metro',    subType: '地铁站',   typecode: '150500' },
@@ -40,7 +46,7 @@ function sleep(ms: number): Promise<void> {
  * 动态加载 AMap 插件（解决缓存实例缺少插件的问题）
  * AMap.plugin() 是官方推荐的动态加载方式，即使 AMap 已被加载过也能正常工作
  */
-function ensurePlugin(AMapObj: typeof window.AMap, pluginName: string): Promise<void> {
+function ensurePlugin(AMapObj: AMapNamespace, pluginName: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // 检查插件是否已存在（如 PlaceSearch → 检查 AMap.PlaceSearch）
     const className = pluginName.split('.').pop() as string;
@@ -63,7 +69,7 @@ function ensurePlugin(AMapObj: typeof window.AMap, pluginName: string): Promise<
  * 用 AMap.PlaceSearch 搜索一类 POI 的周边
  */
 async function searchNearByType(
-  AMapObj: typeof window.AMap,
+  AMapObj: AMapNamespace,
   lng: number,
   lat: number,
   typecode: string,
@@ -75,7 +81,7 @@ async function searchNearByType(
   // 搜索 Promise（可能因网络问题回调不触发，需配合超时）
   const searchPromise = new Promise<Array<{ id: string; name: string; address: string; lng: number; lat: number; adname: string; tel: string }>>((resolve) => {
     const PlaceSearchCtor = (AMapObj as unknown as { PlaceSearch: new (opts: Record<string, unknown>) => {
-      searchNearBy: (keyword: string, center: [number, number], cb: (status: string, result: unknown) => void) => void;
+      searchNearBy: (keyword: string, center: [number, number], radius: number, cb: (status: string, result: unknown) => void) => void;
     } }).PlaceSearch;
 
     const placeSearch = new PlaceSearchCtor({
@@ -146,7 +152,7 @@ export async function crawlPoiForAsset(
 
   const loaded = await loadAMap(key, security);
   if (!loaded) throw new Error('高德地图加载失败');
-  const { AMap } = loaded;
+  const AMap = loaded.AMap as AMapNamespace;
 
   const [lng, lat] = asset.lnglat;
   const now = new Date().toISOString();

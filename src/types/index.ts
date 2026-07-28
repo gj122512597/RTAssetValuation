@@ -9,7 +9,7 @@ export type BusinessType =
   | 'plant';
 
 export type CertificateStatus = 'complete' | 'pending' | 'missing';
-export type ReceivedBatch = 'batch-1' | 'batch-2' | 'batch-3' | 'batch-4';
+export type ReceivedBatch = 'batch-1' | 'batch-2' | 'batch-3' | 'batch-4' | 'hedonic_training';
 export type DecorationLevel = 'rough' | 'simple' | 'standard' | 'fine';
 
 export type HiddenRiskTag =

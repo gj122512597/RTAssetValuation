@@ -12,7 +12,8 @@
  *   - HEDONIC_COMPARATIVE（市场比较法）：12 维特征
  *   - HEDONIC_HISTORICAL（历史数据法）：4 维特征
  *
- * 训练数据：225 条资产（含 10 组 AI 特征），R² ≈ 0.85~0.92
+ * 训练数据：青岛商业办公出租样本 n=10（MVP 拟合，见 server/src/scripts/fit_hedonic.py）；
+ * 比较法 R²≈0.85，历史法 R²≈0.14（历史法特征在出租数据上解释力弱，待扩充样本）
  */
 
 // ============================================================
@@ -69,51 +70,52 @@ export interface HedonicModel {
 
 export const HEDONIC_COMPARATIVE: HedonicModel = {
   name: 'Hedonic · 市场比较法',
-  intercept: 0.58,
+  // 由青岛商业办公出租样本（n=10）经 ETL + 岭回归拟合（见 server/src/scripts/fit_hedonic.py）
+  intercept: -6.1592,
   coefficients: {
-    subway_distance:      -0.0004,   // 每远 1m 降 0.04%
-    condition_score:       0.09,     // 每升 1 分涨 9%
-    decoration_idx:        0.15,     // 每升 1 档涨 15%
-    certificate_idx:      -0.20,     // 权证差降 20%
-    is_cbd:                0.30,     // CBD 溢价 30%
-    is_inner:              0.15,     // 内环溢价 15%
-    log_area:             -0.50,     // 面积越大单价越低
-    school_score:          0.04,     // 学区好涨 4%
-    commercial_density:    0.03,     // 商业密度好涨 3%
-    deco_age:             -0.04,     // 每老 1 年降 4%
-    free_rent_idx:        -0.025,    // 免租期每档降 2.5%
-    base_price_log:        1.80,     // 历史均价代理
+    subway_distance:       0.000084,
+    condition_score:       0.49865,
+    decoration_idx:       -0.48560,
+    certificate_idx:       0.00000,
+    is_cbd:                0.32149,
+    is_inner:              0.00000,
+    log_area:              0.21869,
+    school_score:          0.05305,
+    commercial_density:    -0.11118,
+    deco_age:              0.06369,
+    free_rent_idx:         0.00000,
+    base_price_log:        4.13799,
   },
   feature_means: {
-    subway_distance: 800,
-    condition_score: 6.5,
-    decoration_idx: 1.5,
-    certificate_idx: 0.3,
-    is_cbd: 0.2,
-    is_inner: 0.4,
-    log_area: 0.45,
-    school_score: 7.0,
-    commercial_density: 6.0,
-    deco_age: 5,
-    free_rent_idx: 2,
-    base_price_log: 0.42,
+    subway_distance: 2768.4,
+    condition_score: 5.425,
+    decoration_idx: 1.4,
+    certificate_idx: 0.0,
+    is_cbd: 0.8,
+    is_inner: 0.0,
+    log_area: 0.2632,
+    school_score: 3.0,
+    commercial_density: 5.1667,
+    deco_age: 15.35,
+    free_rent_idx: 2.0,
+    base_price_log: 0.9220,
   },
   feature_importance: {
-    base_price_log: 0.28,
-    subway_distance: 0.18,
-    condition_score: 0.15,
-    decoration_idx: 0.12,
-    log_area: 0.08,
-    certificate_idx: 0.06,
-    is_cbd: 0.05,
-    school_score: 0.03,
-    deco_age: 0.02,
-    commercial_density: 0.02,
-    is_inner: 0.01,
-    free_rent_idx: 0.01,
+    condition_score: 0.2310,
+    subway_distance: 0.1353,
+    decoration_idx: 0.1812,
+    commercial_density: 0.1188,
+    school_score: 0.1134,
+    deco_age: 0.0965,
+    is_cbd: 0.0600,
+    base_price_log: 0.0600,
+    log_area: 0.0039,
+    certificate_idx: 0.0,
+    is_inner: 0.0,
+    free_rent_idx: 0.0,
   },
-  base_score: 6.50,  // exp(0.58 + 1.291) ≈ 6.50 元/㎡·天
-  r2: 0.92,
+  base_score: 2.2075,  // ≈ 青岛办公基准日租金 2.21 元/㎡·天
+  r2: 0.8459,
 };
 
 // ============================================================
@@ -122,27 +124,28 @@ export const HEDONIC_COMPARATIVE: HedonicModel = {
 
 export const HEDONIC_HISTORICAL: HedonicModel = {
   name: 'Hedonic · 历史数据法',
-  intercept: 1.08,
+  // 由青岛商业办公出租样本（n=10）经 ETL + 岭回归拟合
+  intercept: -2.9991,
   coefficients: {
-    base_price_log:  1.90,    // 历史均价代理（核心信号）
-    decoration_idx:  0.12,    // 装修档位
-    deco_age:        -0.03,   // 装修年限
-    free_rent_idx:  -0.02,   // 免租期档位
+    base_price_log:  3.88451,
+    decoration_idx:  0.03997,
+    deco_age:        0.00578,
+    free_rent_idx:   0.00000,
   },
   feature_means: {
-    base_price_log: 0.42,
-    decoration_idx: 1.5,
-    deco_age: 5,
-    free_rent_idx: 2,
+    base_price_log: 0.9220,
+    decoration_idx: 1.4,
+    deco_age: 15.35,
+    free_rent_idx: 2.0,
   },
   feature_importance: {
-    base_price_log: 0.85,
-    decoration_idx: 0.08,
-    deco_age: 0.04,
-    free_rent_idx: 0.03,
+    base_price_log: 0.7040,
+    decoration_idx: 0.1865,
+    deco_age: 0.1095,
+    free_rent_idx: 0.0,
   },
-  base_score: 6.47,  // exp(1.08 + 0.788) ≈ 6.47
-  r2: 0.85,
+  base_score: 2.0690,
+  r2: 0.1424,
 };
 
 // ============================================================

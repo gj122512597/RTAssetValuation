@@ -218,6 +218,8 @@ export default function AmapMapView({
   // 仅 UI 触发 fallback 用
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 点击"定位训练样本"后的即时反馈
+  const [located, setLocated] = useState(false);
 
   const selectedId = useAssetStore((s) => s.selectedAssetId);
   const selectedCompetitorId = useAssetStore((s) => s.selectedCompetitorId);
@@ -257,6 +259,28 @@ export default function AmapMapView({
     () => (focusAsset ? focusAsset.lnglat : [116.4, 39.95]),
     [focusAsset]
   );
+
+  // 训练样本资产（青岛真实坐标，received_batch=hedonic_training）—— 用于"定位训练样本"按钮
+  const trainingAssets = useMemo(
+    () => allAssets.filter((a) => a.received_batch === 'hedonic_training'),
+    [allAssets]
+  );
+  const trainingCenter = useMemo<[number, number] | null>(() => {
+    if (trainingAssets.length === 0) return null;
+    const lng = trainingAssets.reduce((s, a) => s + a.lnglat[0], 0) / trainingAssets.length;
+    const lat = trainingAssets.reduce((s, a) => s + a.lnglat[1], 0) / trainingAssets.length;
+    return [lng, lat];
+  }, [trainingAssets]);
+
+  const handleLocateTraining = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !trainingCenter) return;
+    if (typeof map.setZoomAndCenter === 'function') {
+      map.setZoomAndCenter(12, [trainingCenter[0], trainingCenter[1]], false, 800);
+      setLocated(true);
+      window.setTimeout(() => setLocated(false), 2000);
+    }
+  }, [trainingCenter]);
 
   const key = getAmapKey();
   const security = getAmapSecurity();
@@ -588,5 +612,26 @@ export default function AmapMapView({
     );
   }
 
-  return <div ref={containerCallbackRef} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerCallbackRef} className="w-full h-full" />
+      {!detailMode && trainingCenter && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLocateTraining();
+          }}
+          title="定位 Hedonic 模型训练样本（青岛真实坐标）"
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 px-3 py-2 bg-brand text-white text-xs font-medium rounded-md shadow-lg hover:bg-brand-dark active:scale-95 transition-all"
+        >
+          <span className="text-sm leading-none">📍</span>
+          {located ? '已定位 ✓' : '定位训练样本'}
+          <span className="ml-0.5 rounded bg-white/25 px-1.5 py-0.5 text-[10px] leading-none">
+            {trainingAssets.length}
+          </span>
+        </button>
+      )}
+    </div>
+  );
 }

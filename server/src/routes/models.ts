@@ -25,75 +25,77 @@ interface HedonicModel {
 const BUILTIN: Record<string, HedonicModel> = {
   comparative: {
     name: 'Hedonic · 市场比较法',
-    intercept: 0.58,
+    // 由青岛商业办公出租样本（n=10）经 ETL + 岭回归拟合
+    intercept: -6.1592,
     coefficients: {
-      subway_distance: -0.0004,
-      condition_score: 0.09,
-      decoration_idx: 0.15,
-      certificate_idx: -0.20,
-      is_cbd: 0.30,
-      is_inner: 0.15,
-      log_area: -0.50,
-      school_score: 0.04,
-      commercial_density: 0.03,
-      deco_age: -0.04,
-      free_rent_idx: -0.025,
-      base_price_log: 1.80,
+      subway_distance: 0.000084,
+      condition_score: 0.49865,
+      decoration_idx: -0.48560,
+      certificate_idx: 0.0,
+      is_cbd: 0.32149,
+      is_inner: 0.0,
+      log_area: 0.21869,
+      school_score: 0.05305,
+      commercial_density: -0.11118,
+      deco_age: 0.06369,
+      free_rent_idx: 0.0,
+      base_price_log: 4.13799,
     },
     feature_means: {
-      subway_distance: 800,
-      condition_score: 6.5,
-      decoration_idx: 1.5,
-      certificate_idx: 0.3,
-      is_cbd: 0.2,
-      is_inner: 0.4,
-      log_area: 0.45,
-      school_score: 7.0,
-      commercial_density: 6.0,
-      deco_age: 5,
-      free_rent_idx: 2,
-      base_price_log: 0.42,
+      subway_distance: 2768.4,
+      condition_score: 5.425,
+      decoration_idx: 1.4,
+      certificate_idx: 0.0,
+      is_cbd: 0.8,
+      is_inner: 0.0,
+      log_area: 0.2632,
+      school_score: 3.0,
+      commercial_density: 5.1667,
+      deco_age: 15.35,
+      free_rent_idx: 2.0,
+      base_price_log: 0.9220,
     },
     feature_importance: {
-      base_price_log: 0.28,
-      subway_distance: 0.18,
-      condition_score: 0.15,
-      decoration_idx: 0.12,
-      log_area: 0.08,
-      certificate_idx: 0.06,
-      is_cbd: 0.05,
-      school_score: 0.03,
-      deco_age: 0.02,
-      commercial_density: 0.02,
-      is_inner: 0.01,
-      free_rent_idx: 0.01,
+      condition_score: 0.2310,
+      subway_distance: 0.1353,
+      decoration_idx: 0.1812,
+      commercial_density: 0.1188,
+      school_score: 0.1134,
+      deco_age: 0.0965,
+      is_cbd: 0.0600,
+      base_price_log: 0.0600,
+      log_area: 0.0039,
+      certificate_idx: 0.0,
+      is_inner: 0.0,
+      free_rent_idx: 0.0,
     },
-    base_score: 6.5,
-    r2: 0.92,
+    base_score: 2.2075,
+    r2: 0.8459,
   },
   historical: {
     name: 'Hedonic · 历史数据法',
-    intercept: 1.08,
+    // 由青岛商业办公出租样本（n=10）经 ETL + 岭回归拟合
+    intercept: -2.9991,
     coefficients: {
-      base_price_log: 1.9,
-      decoration_idx: 0.12,
-      deco_age: -0.03,
-      free_rent_idx: -0.02,
+      base_price_log: 3.88451,
+      decoration_idx: 0.03997,
+      deco_age: 0.00578,
+      free_rent_idx: 0.0,
     },
     feature_means: {
-      base_price_log: 0.42,
-      decoration_idx: 1.5,
-      deco_age: 5,
-      free_rent_idx: 2,
+      base_price_log: 0.9220,
+      decoration_idx: 1.4,
+      deco_age: 15.35,
+      free_rent_idx: 2.0,
     },
     feature_importance: {
-      base_price_log: 0.85,
-      decoration_idx: 0.08,
-      deco_age: 0.04,
-      free_rent_idx: 0.03,
+      base_price_log: 0.7040,
+      decoration_idx: 0.1865,
+      deco_age: 0.1095,
+      free_rent_idx: 0.0,
     },
-    base_score: 6.47,
-    r2: 0.85,
+    base_score: 2.0690,
+    r2: 0.1424,
   },
 };
 
@@ -213,16 +215,25 @@ router.put('/hedonic/:method', (req, res) => {
   res.json({ method, message: '模型系数已保存', model: rowToModel(modelToRow(method, b as HedonicModel)) });
 });
 
-// POST /api/models/predict
+// POST /api/models/predict —— 后端「独立推理」：系数留服务端，只回预测值与贡献分解
+// 入参：{ method: 'comparative'|'historical', features: Record<string, number> }
+// 返回：{ method, prediction, contributions, name, r2 }
 router.post('/predict', (req, res) => {
   const { method, features } = req.body as { method: string; features: Record<string, number> };
-  if (!method || !features) {
+  if (!method || !features || typeof features !== 'object') {
     return res.status(400).json({ error: '缺少必填字段: method, features' });
   }
   try {
     const model = loadModel(method);
     const result = predict(model, features);
-    res.json(result);
+    // 独立推理：不向前端泄露模型系数，只回预测值与 SHAP 风格贡献分解
+    res.json({
+      method,
+      prediction: result.prediction,
+      contributions: result.contributions,
+      name: model.name,
+      r2: model.r2,
+    });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }

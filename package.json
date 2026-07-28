@@ -15,6 +15,7 @@
     "server:db:init": "cd server && npm run db:init",
     "server:db:seed": "cd server && npm run db:seed",
     "server:db:migrate": "cd server && npm run db:migrate-mocks",
+    "server:db:migrate:training": "cd server && npm run db:migrate-training",
     "crawl:poi": "cd server && npm run crawl:poi",
     "dev:all": "concurrently -n web,api -c blue,green \"npm run dev\" \"npm run server:dev\""
   },
@@ -30,6 +31,7 @@
     "react-map-gl": "^7.1.6",
     "react-router-dom": "^6.23.1",
     "recharts": "^2.12.7",
+    "xlsx": "^0.18.5",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

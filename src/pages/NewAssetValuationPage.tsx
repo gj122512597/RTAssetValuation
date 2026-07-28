@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Segmented, Button, Typography, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { api } from '@/api/client';
-import { hedonicPredict } from '@/utils/hedonicModel';
-import { shapFromHedonic } from '@/utils/pricingModels';
-import { getActiveModel } from '@/services/modelService';
+import { predictAsset } from '@/services/modelService';
+import { enrichContributions } from '@/utils/pricingModels';
 import { useAssetStore } from '@/stores/assetStore';
 import NewAssetForm from '@/components/valuation/NewAssetForm';
 import NewAssetResult from '@/components/valuation/NewAssetResult';
@@ -102,7 +101,6 @@ export default function NewAssetValuationPage() {
       setLoading(true);
       setLastInput(input);
       try {
-        const model = await getActiveModel(m);
         const ns = await fetchNeighbors(input);
         const neighborMedian = median(ns.map((n) => n.list_price).filter((p) => p > 0));
 
@@ -121,8 +119,11 @@ export default function NewAssetValuationPage() {
           base_price_log: neighborMedian > 0 ? Math.log10(neighborMedian) / 2 : 0.42,
         };
 
-        const { prediction } = hedonicPredict(model, x);
-        const shap = shapFromHedonic(x, model);
+        // ★ 真正调用后端独立推理 API（POST /api/models/predict）
+        //   模型系数留在服务端（SQLite），前端只拿到预测值与 SHAP 贡献分解
+        const res = await predictAsset(m, x);
+        const prediction = res.prediction;
+        const shap = enrichContributions(res.contributions);
 
         const [lowF, highF] = m === 'comparative' ? [0.88, 1.12] : [0.85, 1.15];
         const center = prediction;
@@ -148,12 +149,14 @@ export default function NewAssetValuationPage() {
           radiusKm: input.radiusKm,
           percentile,
           confidence,
-          modelName: model.name,
-          r2: model.r2,
+          modelName: res.name,
+          r2: res.r2,
         });
         setNeighbors(ns.sort((a, b) => a.distanceKm - b.distanceKm));
 
-        if (ns.length === 0) {
+        if (!res.serverSide) {
+          message.warning('后端推理服务暂不可用，已切换为前端内置模型兜底推理（系数与后端一致）');
+        } else if (ns.length === 0) {
           message.warning('该位置周边未检索到竞品，基准价采用默认代理值');
         }
       } catch (e) {

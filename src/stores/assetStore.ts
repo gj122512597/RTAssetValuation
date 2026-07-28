@@ -22,6 +22,7 @@ import intakeAssetsUrl from '@/mocks/intake_assets.json?url';
 import { generateAiFeatures } from '@/utils/aiFeaturesMock';
 import { generateAssets, generateCompetitors } from '@/utils/extendedMockGenerator';
 import { injectHistoricalTransactions } from '@/utils/historicalTransactionMock';
+import { assetsApi } from '@/api/client';
 import type { IntakeAsset } from '@/types';
 import { getPriceBucket } from '@/components/map/AssetMarker';
 
@@ -114,6 +115,60 @@ async function fetchJSON<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** 将数据库 assets 表行（含 JSON 字段字符串）映射为前端 Asset，并补齐 ai_features / historical_transactions */
+function mapDbTrainingAsset(row: Record<string, any>): Asset {
+  const parseJson = (v: unknown): any => {
+    if (v == null) return undefined;
+    if (typeof v === 'string') {
+      try {
+        return JSON.parse(v);
+      } catch {
+        return undefined;
+      }
+    }
+    return v;
+  };
+
+  const featuresRaw = parseJson(row.features_json) ?? row.features;
+  const features: Asset['features'] = {
+    subway_distance: Number(featuresRaw?.subway_distance ?? 500),
+    condition_score: Number(featuresRaw?.condition_score ?? 7),
+  };
+  const hiddenRisks = (parseJson(row.hidden_risks) ?? []) as HiddenRiskTag[];
+
+  const base: Asset = {
+    id: String(row.id),
+    name: String(row.name ?? '未命名资产'),
+    address: row.address ? String(row.address) : '',
+    lnglat: [Number(row.lng), Number(row.lat)],
+    area: Number(row.area ?? 0),
+    status: (row.status as Asset['status']) ?? 'leased',
+    days_vacant: Number(row.days_vacant ?? 0),
+    type: (row.type as BusinessType) ?? 'office',
+    estimated_price: Number(row.estimated_price ?? 0),
+    monthly_rent: Number(row.monthly_rent ?? 0),
+    occupancy_rate: Number(row.occupancy_rate ?? 0),
+    confidence: Number(row.confidence ?? 0.7),
+    region: row.region ? String(row.region) : '',
+    received_batch: (row.received_batch as ReceivedBatch) ?? 'batch-4',
+    certificate_status: (row.certificate_status as Asset['certificate_status']) ?? 'complete',
+    decoration_level: (row.decoration_level as Asset['decoration_level']) ?? 'standard',
+    last_renovation: row.last_renovation != null ? Number(row.last_renovation) : undefined,
+    default_free_rent_days:
+      row.default_free_rent_days != null ? Number(row.default_free_rent_days) : undefined,
+    features,
+    hidden_risks: hiddenRisks,
+  } as Asset;
+
+  // ai_features / historical_transactions 缺失时，复用与现有 225 资产相同的生成器补齐
+  return {
+    ...base,
+    ai_features: base.ai_features ?? generateAiFeatures(base),
+    historical_transactions:
+      base.historical_transactions ?? injectHistoricalTransactions(base).historical_transactions,
+  };
+}
+
 export const useAssetStore = create<AssetState>((set, get) => ({
   assets: [],
   competitors: [],
@@ -169,6 +224,24 @@ export const useAssetStore = create<AssetState>((set, get) => ({
           a.historical_transactions ?? injectHistoricalTransactions(a).historical_transactions,
       }));
       const assets: Asset[] = [...staticAssets, ...generateAssets(200).map(injectHistoricalTransactions)];
+
+      // 合并数据库中的训练样本资产（Hedonic 模型训练用，青岛真实坐标）
+      // 这些资产存在 assets 表（received_batch=hedonic_training），前端不自带，需从后端拉取
+      try {
+        const dbRows = (await assetsApi.list({
+          received_batch: 'hedonic_training',
+        })) as Record<string, any>[];
+        const existingIds = new Set(assets.map((a) => a.id));
+        for (const row of dbRows) {
+          if (existingIds.has(String(row.id))) continue;
+          const merged = mapDbTrainingAsset(row);
+          assets.push(merged);
+          existingIds.add(merged.id);
+        }
+      } catch (dbErr) {
+        // 后端未启动 / 表不存在时静默跳过，不阻塞主流程
+        console.warn('[assetStore] 加载数据库训练资产失败，已跳过：', dbErr);
+      }
 
       // 竞品：手写 25 + 业务 demo 300 → 共 325
       const competitors: Competitor[] = [...rawComps, ...generateCompetitors(300)];

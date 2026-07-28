@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, Tag, Alert, Button, Segmented, Space, Steps, Divider } from 'antd';
+import { Card, Tag, Alert, Button, Segmented, Space, Steps, Divider, Tabs } from 'antd';
+import HedonicTrainingTab from '@/components/modeling/HedonicTrainingTab';
 import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
@@ -140,7 +141,15 @@ export default function ModelingIntroPage() {
         <div className="ml-auto text-xs text-gray-500">点地图任意资产可查看其实测估价</div>
       </div>
 
-      <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <Tabs
+        defaultActiveKey="intro"
+        className="px-6 pt-4"
+        items={[
+          {
+            key: 'intro',
+            label: 'Hedonic 方法说明',
+            children: (
+              <div className="max-w-5xl mx-auto space-y-5 pt-4">
         {/* 一句话定义 */}
         <Alert
           type="info"
@@ -299,7 +308,16 @@ export default function ModelingIntroPage() {
             </Space>
           </div>
         </Card>
-      </div>
+              </div>
+            ),
+          },
+          {
+            key: 'training',
+            label: 'Hedonic 模型训练',
+            children: <HedonicTrainingTab />,
+          },
+        ]}
+      />
     </div>
   );
 }

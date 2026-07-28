@@ -1,0 +1,74 @@
+{
+  "comparative": {
+    "intercept": -6.165291276594135,
+    "coefficients": {
+      "subway_distance": 8.437064085686114e-05,
+      "condition_score": 0.49907889640594383,
+      "decoration_idx": -0.48430223252238863,
+      "certificate_idx": 0.0,
+      "is_cbd": 0.3215248646225232,
+      "is_inner": 0.0,
+      "log_area": 0.21842584530437315,
+      "school_score": 0.05299468730226124,
+      "commercial_density": -0.11112548969334353,
+      "deco_age": 0.06372248822440559,
+      "free_rent_idx": 0.0,
+      "base_price_log": 4.138029145721272
+    },
+    "feature_means": {
+      "subway_distance": 2768.4,
+      "condition_score": 5.4270000000000005,
+      "decoration_idx": 1.4,
+      "certificate_idx": 0.0,
+      "is_cbd": 0.8,
+      "is_inner": 0.0,
+      "log_area": 0.26321000000000006,
+      "school_score": 3.0,
+      "commercial_density": 5.164,
+      "deco_age": 15.35,
+      "free_rent_idx": 2.0,
+      "base_price_log": 0.92196
+    },
+    "feature_importance": {
+      "subway_distance": 0.13543302253318187,
+      "condition_score": 0.23085297150748627,
+      "decoration_idx": 0.1808658453683153,
+      "certificate_idx": 0.0,
+      "is_cbd": 0.06003778481879853,
+      "is_inner": 0.0,
+      "log_area": 0.003887479006452202,
+      "school_score": 0.11336841788108745,
+      "commercial_density": 0.11888479587480826,
+      "deco_age": 0.09663189819106781,
+      "free_rent_idx": 0.0,
+      "base_price_log": 0.060037784818802176
+    },
+    "base_score": 2.2074539395062565,
+    "r2": 0.8460702564304636,
+    "lambda": 0.1
+  },
+  "historical": {
+    "intercept": -2.9988818857535784,
+    "coefficients": {
+      "base_price_log": 3.884432044457599,
+      "decoration_idx": 0.03996089035382809,
+      "deco_age": 0.005778408315415302,
+      "free_rent_idx": 0.0
+    },
+    "feature_means": {
+      "base_price_log": 0.92196,
+      "decoration_idx": 1.4,
+      "deco_age": 15.35,
+      "free_rent_idx": 2.0
+    },
+    "feature_importance": {
+      "base_price_log": 0.7040864305771088,
+      "decoration_idx": 0.1864414960825019,
+      "deco_age": 0.10947207334038936,
+      "free_rent_idx": 0.0
+    },
+    "base_score": 2.068974132133605,
+    "r2": 0.14241740861914576,
+    "lambda": 1.0
+  }
+}

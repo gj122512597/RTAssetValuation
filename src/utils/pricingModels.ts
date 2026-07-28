@@ -66,7 +66,7 @@ export function calcValuation(
  * 把 hedonicPredict 返回的 ShapRow[] 转换为业务侧的 ShapContribution[]
  * 补充 feature_cn / explanation 以满足合规审计 + UI 渲染需求
  */
-function enrichContributions(rows: ShapRow[]): ShapContribution[] {
+export function enrichContributions(rows: ShapRow[]): ShapContribution[] {
   return rows.map((row) => {
     const meta = getFeatureMeta(row.feature);
     return {

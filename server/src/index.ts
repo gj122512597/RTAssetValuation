@@ -11,6 +11,7 @@ import assetsRouter from './routes/assets.js';
 import dataSourcesRouter from './routes/dataSources.js';
 import statsRouter from './routes/stats.js';
 import modelsRouter from './routes/models.js';
+import trainingSamplesRouter, { initTrainingSamples } from './routes/trainingSamples.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
@@ -35,6 +36,7 @@ app.use('/api/assets', assetsRouter);
 app.use('/api/data-sources', dataSourcesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/models', modelsRouter);
+app.use('/api/training-samples', trainingSamplesRouter);
 
 // 404
 app.use((_req, res) => {
@@ -49,6 +51,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 // 启动
 initSchema();
+initTrainingSamples();
 app.listen(PORT, () => {
   console.log(`[server] 数据后端已启动: http://localhost:${PORT}`);
   console.log(`[server] API 文档:`);

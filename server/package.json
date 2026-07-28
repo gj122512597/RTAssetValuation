@@ -11,6 +11,7 @@
     "db:init": "tsx src/scripts/initDb.ts",
     "db:seed": "tsx src/scripts/seedDemo.ts",
     "db:migrate-mocks": "tsx src/scripts/migrateMocks.ts",
+    "db:migrate-training": "tsx src/scripts/migrateTrainingAssets.ts",
     "crawl:poi": "tsx src/scripts/crawlPoi.ts",
     "lint": "tsc --noEmit"
   },
