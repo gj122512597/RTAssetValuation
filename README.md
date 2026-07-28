@@ -17,7 +17,8 @@
 - [高德地图配置](#高德地图配置)
 - [数据规模切换](#数据规模切换)
 - [定价模型：Hedonic 对数线性回归](#定价模型hedonic-对数线性回归)
-- [AI 建模特征（10 组）](#ai-建模特征10-组)
+- [模型训练与增训（Hedonic 训练 Tab）](#模型训练与增训hedonic-训练-tab)
+- [AI 建模特征（12 组）](#ai-建模特征12-组81-字段)
 - [项目演进历程](#项目演进历程)
 - [后续扩展方向](#后续扩展方向)
 
@@ -36,7 +37,7 @@
 | **M5** | 非标破冰 | 自动判定非标资产 + 残值/运输系数人工 slider + 4 个最相似案例下钻 + 参考区间（不给硬数字） | 详情页（仅极端非标资产可见） |
 | **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` |
 | **M7** | 尽职调查中心 | 尽调任务管理 + 新建尽调单 + 资产接收 intake 下钻 | `/due-diligence` |
-| **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页 | `/modeling-intro` |
+| **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页；**模型训练 Tab**（上传 Excel 增训 + 行内新增训练数据 + 一键重训） | `/modeling-intro` |
 
 ---
 
@@ -241,16 +242,16 @@ interface HedonicModel {
 
 | 方法 | 输入维度 | 算法 | R² |
 |---|---|---|---|
-| **市场比较法** `comparative` | 9 维：地铁距离 + 成新 + 装修 + 装修年限 + 权证 + 学区 + 商密 + CBD + 免租 | `HEDONIC_COMPARATIVE`（对数线性 + 偏效应贡献） | ≈ 0.92 |
-| **历史数据法** `historical` | 4 维：基准价（对数）+ 装修 + 装修年限 + 免租 | `HEDONIC_HISTORICAL` | ≈ 0.85 |
+| **市场比较法** `comparative` | 9 维：地铁距离 + 成新 + 装修 + 装修年限 + 权证 + 学区 + 商密 + CBD + 免租 | `HEDONIC_COMPARATIVE`（对数线性 + 偏效应贡献，系数由 `fit_hedonic.py` 岭回归真实拟合） | R²≈0.85（青岛 n=10 真实样本） |
+| **历史数据法** `historical` | 4 维：基准价（对数）+ 装修 + 装修年限 + 免租 | `HEDONIC_HISTORICAL` | R²≈0.14（样本少，低频特征解释力有限） |
 
-### 为什么手写 JS 推理？
+### 前端推理 vs 后端训练
 
-浏览器无法直接加载 Python pickle。要真实加载需：
-1. Python 训练 + 导出 ONNX / JSON dump → 前端 ONNX.js 跑
-2. 或后端 BFF `POST /api/predict` → fetch
+- **前端手写 JS 推理**（`src/utils/hedonicModel.ts` 的 `hedonicPredict`）：用于估价页即时给出预测值与 SHAP 风格的偏效应贡献分解，零后端依赖、可解释。
+- **后端独立推理** `POST /api/models/predict`：系数留在服务端不外泄，只回预测值与贡献分解（适合生产对外服务）。
+- **真实训练** `server/src/scripts/fit_hedonic.py`：岭回归 + LOO-CV 选 λ，读取 `training_samples` 表全量拟合，系数写回 `hedonic_models`，前端经 `GET /api/models/hedonic/:method` 拉取即生效（详见上方「模型训练与增训」）。
 
-MVP 范围内手写 Hedonic 回归提供完全相同的可解释性 + 数据结构，零后端依赖。
+> 注：浏览器无法直接加载 Python pickle；模型系数以 JSON（`coefficients_json` 等）形式在前后端间传递，结构一致。
 
 ### SHAP 风格贡献
 
@@ -265,6 +266,21 @@ MVP 范围内手写 Hedonic 回归提供完全相同的可解释性 + 数据结�
 | `source` | ★ 中文取值来源（自动格式化：`300m` / `8 年` / `¥4.50/㎡·天`等） |
 
 完整逻辑见 `src/utils/hedonicModel.ts` 的 `FEATURE_META` 表。
+
+---
+
+## 模型训练与增训（Hedonic 训练 Tab）
+
+入口：建模介绍页 `/modeling-intro` → 「Hedonic 模型训练」Tab。支持在不改代码的前提下，用自有数据持续迭代模型：
+
+- **训练数据可编辑**：样本池 = 内置 10 条（青岛真实坐标，`source=builtin`）+ 上传 + 手动新增，统一存于后端 `training_samples` 表（首次启动自动 seed）。
+- **功能 1 · 上传 Excel 增训**：下载模板（已派生 12 维特征矩阵）→ 填写 → 上传（SheetJS 解析 + 必填/数值校验 + 预览确认）→ 批量入库。
+- **功能 2 · 行内新增训练数据**：表格「+ 新增一行」直接行内编辑 / 保存 / 删除样本（来源标签区分 内置 / 上传 / 手动）。
+- **重训模型**：点「重训模型」→ 后端 `POST /api/training-samples/refit` 调 `python3 server/src/scripts/fit_hedonic.py` **全量重训**（岭回归 + LOO-CV 选 λ）→ 写回 `hedonic_models` 表 → 前端系数卡片与 R² 立即刷新（显示「重训前 → 重训后」对比）。
+
+> ⚠️ **重训依赖运行环境具备 `python3` 与 `numpy`**（`pip install numpy`）。无 Python / numpy 时，前端退回内置静态系数兜底，重训按钮无效。
+> ⚠️ 重训语义为「**全量重训含新样本**」，会整体覆盖 `hedonic_models` 系数——内置 10 条系数现在已是真实训练结果，不再是硬编码兜底。
+> ⚠️ 训练样本与模型均持久化在后端 SQLite；点「重训模型」会用当前全部样本（内置 + 上传 + 手动）重拟合。
 
 ---
 
@@ -308,14 +324,15 @@ UI 表现（`AiFeaturesCard`）：
 | 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（225 资产合并 + Hedonic 回归 + 中文化 SHAP + 数据后端 SQLite） |
 | 新功能 | 2026-07-27 | 新资产估价录入 `/valuation/new`、尽职调查中心 `/due-diligence`、建模介绍 `/modeling-intro` |
 | UX 重构 | 2026-07-27 | 详情页"结论先行"布局：头部 + 资产画像 → 左[地图+竞品对标] / 右[结论(定价)+支撑特征]；竞品对标与地图就近联动；消除双重滚动；结论区加可信度来源闭环 |
+| 模型 & 训练 | 2026-07-28 | 「定位训练样本」地图按钮；模型训练 Tab 两功能（上传 Excel 增训 + 行内新增训练数据 + 一键重训）；后端 `training_samples` 表 + `/api/training-samples` CRUD + `refit` 端点；`fit_hedonic.py` 改为读表重训；模型系数由真实青岛样本拟合（comparative R²≈0.85 / historical R²≈0.14） |
 
 ---
 
 ## 数据后端（SQLite + Express）
 
-项目已内置轻量数据后端 `server/`，用于**存储爬取的外部数据**（竞品挂牌/历史成交/POI/政府数据）。
+项目已内置轻量数据后端 `server/`，用于**存储爬取的外部数据**（竞品挂牌/历史成交/POI/政府数据），以及 **Hedonic 模型系数**（`hedonic_models`）与**训练样本池**（`training_samples`）。
 
-### 数据库表结构（9 张表 + 1 视图）
+### 数据库表结构（11 张表 + 1 视图）
 
 | 表名 | 用途 | 对应前端类型 |
 |---|---|---|
@@ -328,6 +345,8 @@ UI 表现（`AiFeaturesCard`）：
 | `government_data` | 政府公开数据（规划/土地/政策） | - |
 | `assets` | 资产主表（与前端 mock 对齐） | `Asset` |
 | `asset_competitor_map` | 资产-竞品关联映射 | - |
+| `hedonic_models` | Hedonic 模型系数（`GET/PUT /api/models/hedonic/:method` 读写，首次启动写内置种子） | `HedonicModel` |
+| `training_samples` | 训练样本池（内置 10 + 上传 + 手动），`fit_hedonic.py` 重训数据源 | - |
 | `v_crawl_task_latest` | 视图：任务 + 最近一次日志 | - |
 
 设计要点：
@@ -387,6 +406,10 @@ npm run dev:all
 | GET/POST/PUT/DELETE | `/api/data-sources` | 数据源配置 |
 | GET | `/api/stats` | 各表记录数汇总 |
 | GET | `/api/stats/source-distribution` | 按数据源分布统计 |
+| GET/PUT | `/api/models/hedonic/:method` | 获取/覆盖 Hedonic 模型系数（`comparative` / `historical`） |
+| POST | `/api/models/predict` | 服务端独立推理（系数留后端，仅回预测值 + SHAP 贡献分解） |
+| GET/POST/PUT/DELETE | `/api/training-samples` | 训练样本池 CRUD（`source`: builtin / upload / manual） |
+| POST | `/api/training-samples/refit` | 触发 `python3 server/src/scripts/fit_hedonic.py` 全量重训并写回 `hedonic_models` |
 
 > 空间查询示例：`GET /api/competitors?lng=116.4648&lat=39.9087&radius_km=3`
 
