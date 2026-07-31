@@ -5,7 +5,6 @@ import type {
   Competitor,
   CrawlerTask,
   CurrentUser,
-  DueDiligenceCheck,
   HiddenRiskTag,
   PoiDataset,
   PricingModel,
@@ -18,12 +17,10 @@ import valuationUrl from '@/mocks/valuation_logic.json?url';
 import competitorsUrl from '@/mocks/competitors.json?url';
 import poiUrl from '@/mocks/poi.json?url';
 import crawlerTasksUrl from '@/mocks/crawler_tasks.json?url';
-import intakeAssetsUrl from '@/mocks/intake_assets.json?url';
 import { generateAiFeatures } from '@/utils/aiFeaturesMock';
 import { generateAssets, generateCompetitors } from '@/utils/extendedMockGenerator';
 import { injectHistoricalTransactions } from '@/utils/historicalTransactionMock';
 import { assetsApi } from '@/api/client';
-import type { IntakeAsset } from '@/types';
 import { getPriceBucket } from '@/components/map/AssetMarker';
 
 interface AssetState {
@@ -57,10 +54,6 @@ interface AssetState {
   pricingModelsUsed: PricingModel[];
   compRadiusKm: number;
 
-  /** 尽调进度（按 asset.id 索引） */
-  dueDiligence: Record<string, DueDiligenceCheck[]>;
-  /** 资产接收 / 新建（待尽调）队列 */
-  intakeAssets: IntakeAsset[];
   showCompetitors: boolean;
   manualRisks: Record<string, HiddenRiskTag[]>;
 
@@ -84,18 +77,6 @@ interface AssetState {
   setPricingModel: (m: PricingModel) => void;
   setCompRadiusKm: (km: number) => void;
   setShowCompetitors: (b: boolean) => void;
-  /** 初始化 / 更新尽调单条 check */
-  initDueDiligence: (assetId: string, checks: DueDiligenceCheck[]) => void;
-  setCheckResult: (
-    assetId: string,
-    checkId: string,
-    patch: Partial<DueDiligenceCheck>
-  ) => void;
-  resetDueDiligence: (assetId: string) => void;
-  /** 推进 intake 状态（to_do → in_progress → completed/rejected） */
-  setIntakeStatus: (intakeId: string, status: IntakeAsset['status']) => void;
-  /** 把 intake 的进度合并到 dueDiligence（按 intake.id 作为 key） */
-  syncIntakeToDueDiligence: (intakeId: string) => void;
   toggleManualRisk: (assetId: string, tag: HiddenRiskTag) => void;
   togglePoi: (k: 'metro' | 'districts' | 'heatmap') => void;
   toggleModelUsed: (m: PricingModel) => void;
@@ -195,8 +176,6 @@ export const useAssetStore = create<AssetState>((set, get) => ({
   compRadiusKm: 3,
   showCompetitors: true,
   manualRisks: {},
-  dueDiligence: {},
-  intakeAssets: [],
 
   showMetro: true,
   showDistricts: false,
@@ -206,12 +185,11 @@ export const useAssetStore = create<AssetState>((set, get) => ({
     if (get().loading) return;
     set({ loading: true, error: null });
     try {
-      // 总是要加载的元数据（valuation logic, poi, crawler tasks, intake）+ 手写 25 数据集
-      const [valuationLogic, poi, crawlerTasks, intakeAssets, rawAssets, rawComps] = await Promise.all([
+      // 总是要加载的元数据（valuation logic, poi, crawler tasks）+ 手写 25 数据集
+      const [valuationLogic, poi, crawlerTasks, rawAssets, rawComps] = await Promise.all([
         fetchJSON<ValuationLogic>(valuationUrl),
         fetchJSON<PoiDataset>(poiUrl),
         fetchJSON<CrawlerTask[]>(crawlerTasksUrl),
-        fetchJSON<IntakeAsset[]>(intakeAssetsUrl),
         fetchJSON<Asset[]>(assetsUrl),
         fetchJSON<Competitor[]>(competitorsUrl),
       ]);
@@ -246,7 +224,7 @@ export const useAssetStore = create<AssetState>((set, get) => ({
       // 竞品：手写 25 + 业务 demo 300 → 共 325
       const competitors: Competitor[] = [...rawComps, ...generateCompetitors(300)];
 
-      set({ assets, valuationLogic, competitors, poi, crawlerTasks, intakeAssets, loading: false });
+      set({ assets, valuationLogic, competitors, poi, crawlerTasks, loading: false });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e), loading: false });
     }
@@ -320,41 +298,6 @@ export const useAssetStore = create<AssetState>((set, get) => ({
     })),
 
   resetData: () => set({ assets: [], competitors: [] }),
-
-  initDueDiligence: (assetId, checks) =>
-    set((s) => ({ dueDiligence: { ...s.dueDiligence, [assetId]: checks } })),
-  setCheckResult: (assetId, checkId, patch) =>
-    set((s) => {
-      const cur = s.dueDiligence[assetId] ?? [];
-      const next = cur.map((c) => (c.id === checkId ? { ...c, ...patch } : c));
-      return { dueDiligence: { ...s.dueDiligence, [assetId]: next } };
-    }),
-  resetDueDiligence: (assetId) =>
-    set((s) => {
-      const next = { ...s.dueDiligence };
-      delete next[assetId];
-      return { dueDiligence: next };
-    }),
-
-  setIntakeStatus: (intakeId, status) =>
-    set((s) => ({
-      intakeAssets: s.intakeAssets.map((i) =>
-        i.id === intakeId
-          ? { ...i, status, progress: i.progress ? { ...i.progress, status: status as 'pending' | 'in_progress' | 'completed' | 'rejected' } : undefined }
-          : i
-      ),
-    })),
-  syncIntakeToDueDiligence: (intakeId) =>
-    set((s) => {
-      const intake = s.intakeAssets.find((i) => i.id === intakeId);
-      if (!intake?.progress) return {};
-      return {
-        dueDiligence: {
-          ...s.dueDiligence,
-          [intakeId]: intake.progress.checks,
-        },
-      };
-    }),
 
   getAssetById: (id) => (id ? get().assets.find((a) => a.id === id) : undefined),
 

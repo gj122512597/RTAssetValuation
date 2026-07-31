@@ -158,7 +158,6 @@
       <a href="#p2">详情钻取</a>
       <a href="#p3">新资产估价</a>
       <a href="#p4">情报站</a>
-      <a href="#p5">尽调工作台</a>
       <a href="#p6">建模训练</a>
       <a href="#model">定价模型</a>
       <a href="#arch">技术架构</a>
@@ -172,7 +171,7 @@
     <span class="eyebrow">● 全功能可运行系统 · PRD §1–§4 已交付</span>
     <h1>以 GIS 地图为核心资产盘点 · 竞品对标 · 智能估价 · 报告生成一体工作台</h1>
     <p class="lede">面向业务团队 review 的租金评估系统：用一张地图把「225 项资产 / 325 竞品 / 876 历史成交 / 26 POI」串起来，
-      从数据采集到尽调、建模、智能定价，形成一条可审计、可解释的估价闭环。</p>
+      从数据采集、建模到智能定价，形成一条可审计、可解释的估价闭环。</p>
     <div class="kpis">
       <div class="kpi"><div class="n">225</div><div class="l">入库资产（手写25+生成200）</div></div>
       <div class="kpi"><div class="n">325</div><div class="l">竞品挂牌（贝壳/58/链家）</div></div>
@@ -217,13 +216,6 @@
       <div class="arrow">→</div>
       <div class="stage">
         <div class="num">3</div>
-        <h4>尽调工作台</h4>
-        <p>资产接收 · 风险核查 · 入库/拒收</p>
-        <div class="route">→ /due-diligence</div>
-      </div>
-      <div class="arrow">→</div>
-      <div class="stage">
-        <div class="num">4</div>
         <h4>智能定价</h4>
         <p>比较法/历史法 · SHAP 拆解 · 建议租金</p>
         <div class="route">→ /valuation/new</div>
@@ -257,7 +249,7 @@
           <h5>它在流程中的位置</h5>
           <ul>
             <li>所有页面的统一入口，打开即见全量资产分布。</li>
-            <li>顶部「业务主流程」条串联 采集→建模→尽调→定价 四阶段。</li>
+            <li>顶部「业务主流程」条串联 采集→建模→定价 三阶段。</li>
             <li>点击任意资产 marker 即下钻到详情页（下一页）。</li>
           </ul>
           <h5 style="margin-top:16px;">关键能力</h5>
@@ -511,49 +503,6 @@
       </div>
     </div>
 
-    <!-- P5 DUE DILIGENCE -->
-    <div class="tour" id="p5" style="margin-top:22px;">
-      <div class="tour-head">
-        <div class="tour-no">05</div>
-        <div>
-          <h3>尽调工作台</h3>
-          <div class="desc">流程阶段③ 尽调 · 路径 <code>/due-diligence</code></div>
-        </div>
-        <div class="link">M7</div>
-      </div>
-      <div class="tour-body">
-        <div class="tour-why">
-          <h5>它在流程中的位置</h5>
-          <ul>
-            <li>流水线第 3 站：资产接收后做风险核查，再进入定价。</li>
-            <li>支持 部队接收 / 新购入 / 拍卖竞得 / 政府划拨 来源。</li>
-          </ul>
-          <h5 style="margin-top:16px;">关键能力</h5>
-          <ul>
-            <li>待办 / 进行中 / 已完成 / 已拒收 四态 Tab。</li>
-            <li>搜索 + 业态/区域/来源 筛选，按优先级·截止日排序。</li>
-            <li>完成后「查看资产」跳回详情页，形成闭环。</li>
-          </ul>
-        </div>
-        <div class="mock">
-          <div class="cap">关键功能页面 · 尽调工作台</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
-            <div class="stat" style="border-color:#bfdbfe;background:#eaf1ff;"><div class="n" style="color:var(--brand)">12</div><div class="l">待办 → 立即开始</div></div>
-            <div class="stat"><div class="n" style="color:var(--amber)">7</div><div class="l">进行中</div></div>
-            <div class="stat" style="border-color:#fecaca;background:#fef2f2;"><div class="n" style="color:var(--red)">3</div><div class="l">⚠ 高优先级(未完成)</div></div>
-          </div>
-          <table>
-            <thead><tr><th>ID</th><th>资产</th><th>业态/区域</th><th>来源/优先级</th><th>截止</th><th>进度</th><th>操作</th></tr></thead>
-            <tbody>
-              <tr><td><code>RZ-2023-014</code></td><td>西二旗研发楼<br><span style="color:var(--ink-4);font-size:11px;">海淀·8000㎡</span></td><td><span class="tag b">写字楼</span> 北京</td><td><span class="tag r">部队接收</span> <span class="tag r">高优先</span></td><td><span class="tag r">08-02</span></td><td><span style="color:var(--ink-3);font-size:12px;">未开始</span></td><td><span class="btn p" style="padding:3px 9px;">开始</span></td></tr>
-              <tr><td><code>RT-0188</code></td><td>徐家汇商办<br><span style="color:var(--ink-4);font-size:11px;">上海·4500㎡</span></td><td><span class="tag b">商办</span> 上海</td><td><span class="tag" style="background:#dbeafe;color:#1d4ed8;">新购入</span> <span class="tag o">中优先</span></td><td><span class="tag o">08-09</span></td><td style="min-width:120px;"><div style="height:6px;background:#eef2f7;border-radius:4px;overflow:hidden;"><div style="width:60%;height:100%;background:var(--brand)"></div></div><span style="font-size:11px;color:var(--ink-3);">60%</span></td><td><span class="btn" style="padding:3px 9px;">继续</span></td></tr>
-              <tr><td><code>RT-0205</code></td><td>陆家嘴商铺<br><span style="color:var(--ink-4);font-size:11px;">上海·2200㎡</span></td><td><span class="tag b">商铺</span> 上海</td><td><span class="tag" style="background:#f3e8ff;color:#7e22ce;">拍卖竞得</span> <span class="tag r">高优先</span></td><td><span class="tag" style="background:#fee2e2;color:#b91c1c;">已逾期</span></td><td><span style="color:var(--green);font-size:12px;">已入库</span></td><td><a href="#" style="font-size:12px;">查看资产 ›</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
     <!-- P6 MODELING -->
     <div class="tour" id="p6" style="margin-top:22px;">
       <div class="tour-head">
@@ -674,7 +623,7 @@
 
 <footer>
   <div class="wrap">
-    XX地产 · 租金地图评估系统 — 系统介绍（按业务主流程串联 6 大核心页面）<br>
+    XX地产 · 租金地图评估系统 — 系统介绍（按业务主流程串联 5 大核心页面）<br>
     本页为产品/业务评审用导览，页面 UI 为关键功能还原示意。
   </div>
 </footer>

@@ -5,7 +5,6 @@ import {
   CloudDownloadOutlined,
   BranchesOutlined,
   LineChartOutlined,
-  FileTextOutlined,
   RightOutlined,
   ReadOutlined,
 } from '@ant-design/icons';
@@ -44,13 +43,6 @@ const STAGES: Stage[] = [
     to: '/modeling-intro',
   },
   {
-    key: 'dd',
-    title: '尽调工作台',
-    icon: <FileTextOutlined />,
-    desc: () => '资产核查 · 风险',
-    to: '/due-diligence',
-  },
-  {
     key: 'price',
     title: '智能定价',
     icon: <LineChartOutlined />,
@@ -60,10 +52,9 @@ const STAGES: Stage[] = [
 ];
 
 /**
- * 主页顶部「业务主流程」：单行展示品牌 + 端到端 4 阶段流水线 + 数据时间戳，
+ * 主页顶部「业务主流程」：单行展示品牌 + 端到端 3 阶段流水线 + 数据时间戳，
  * 与原品牌栏合并为一行，避免堆叠遮挡地图视野。
- * 数据采集=数据情报站、智能定价=新资产估价（已合并）、数据入库已并入采集，
- * 故不再单列；尽调工作台作为第 3 阶段（资产建模后、智能定价前）融入流程。
+ * 数据采集=数据情报站、智能定价=新资产估价（已合并）、数据入库已并入采集。
  * 计数实时取自 assetStore（loadAll 已在主页挂载时执行）。
  */
 export default function ProcessFlowBanner() {
@@ -85,7 +76,7 @@ export default function ProcessFlowBanner() {
 
       <div className="h-7 w-px shrink-0 bg-gray-200" />
 
-      {/* 流程标题 + 4 阶段（单行，不滚动） */}
+      {/* 流程标题 + 3 阶段（单行，不滚动） */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {/* 流程标题（固定不滚） */}
         <span className="flex shrink-0 items-center gap-2 pr-1 text-ink-900">
@@ -93,7 +84,7 @@ export default function ProcessFlowBanner() {
           <span className="text-sm font-semibold">业务主流程</span>
         </span>
 
-        {/* 4 阶段流水线 */}
+        {/* 3 阶段流水线 */}
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {STAGES.map((s, i) => (
             <div key={s.key} className="flex shrink-0 items-center gap-1.5">

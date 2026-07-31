@@ -2,7 +2,7 @@
 
 **面向业务团队 review 的资产盘点 / 竞品对标 / 智能估价 / 报告生成一体工作台**，以 GIS 地图为核心交互载体。
 
-> 状态：**全功能可运行系统** —— PRD §1～§4 全部交付；内置 **SQLite + Express 数据后端**（225 资产 / 325 竞品 / 876 历史成交 / 26 POI 已全量入库）；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图；新增 **新资产估价录入 / 尽职调查中心 / 建模介绍** 页面。
+> 状态：**全功能可运行系统** —— PRD §1～§4 全部交付；内置 **SQLite + Express 数据后端**（225 资产 / 325 竞品 / 876 历史成交 / 26 POI 已全量入库）；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图；新增 **新资产估价录入 / 建模介绍** 页面。
 > 待接入：真实 BFF 联调、NFR §5 信创部署（麒麟 OS 镜像已就绪）、爬虫调度 Airflow。
 
 ---
@@ -35,9 +35,7 @@
 | **M3** | AI 报告工场 | 一键生成《租金评估建议书》HTML + 八项合规审查评分 + 浏览器原生 `window.print()` 导出 PDF | 详情页 → "生成报告" |
 | **M4** | 外部数据情报 | 爬虫任务管理（6 mock 条）+ 新建任务 + 4 源（贝壳/58/房天下/链家）+ POI 1km 统计 + OCR 评估报告 + 人工调研数据 | `/intel` |
 | **M5** | 非标破冰 | 自动判定非标资产 + 残值/运输系数人工 slider + 4 个最相似案例下钻 + 参考区间（不给硬数字） | 详情页（仅极端非标资产可见） |
-| **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` |
-| **M7** | 尽职调查中心 | 尽调任务管理 + 新建尽调单 + 资产接收 intake 下钻 | `/due-diligence` |
-| **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页；**模型训练 Tab**（上传 Excel 增训 + 行内新增训练数据 + 一键重训） | `/modeling-intro` |
+| **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` || **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页；**模型训练 Tab**（上传 Excel 增训 + 行内新增训练数据 + 一键重训） | `/modeling-intro` |
 
 ---
 
@@ -155,9 +153,6 @@ src/
     ├── AssetDetailPage.tsx               # 详情（结论先行：头部+画像 → 左[地图+竞品对标]/右[结论+支撑特征]）
     ├── IntelPage.tsx                     # 情报站（/intel 爬虫任务管理）
     ├── NewAssetValuationPage.tsx         # 新资产估价录入（/valuation/new）
-    ├── DueDiligenceCenter.tsx            # 尽调中心（/due-diligence）
-    ├── DueDiligenceNewPage.tsx           # 新建尽调（/due-diligence/new）
-    ├── DueDiligenceIntakePage.tsx        # 资产接收下钻（/due-diligence/:id）
     └── ModelingIntroPage.tsx             # 建模介绍（/modeling-intro）
 ```
 
@@ -171,9 +166,6 @@ src/
 | `/asset/:id` | AssetDetailPage（结论先行：智能定价 + AI 特征 + 报告 Drawer + 竞品对标） |
 | `/valuation/new` | NewAssetValuationPage（新资产估价录入：周边竞品检索 + Hedonic 测算 + SHAP） |
 | `/intel` | IntelPage（爬虫任务管理 + 新建任务） |
-| `/due-diligence` | DueDiligenceCenter（尽调任务中心） |
-| `/due-diligence/new` | DueDiligenceNewPage（新建尽调单） |
-| `/due-diligence/:id` | DueDiligenceIntakePage（资产接收下钻） |
 | `/modeling-intro` | ModelingIntroPage（Hedonic 模型说明） |
 | `*` | 重定向到 `/` |
 
@@ -322,7 +314,7 @@ UI 表现（`AiFeaturesCard`）：
 | M3 | 2026-07 | AI 报告工场 + 完整定价方法 + 爬虫情报站 |
 | M4 | 2026-07 | 外部数据情报 + 非标破冰 + POI |
 | 反馈 #5-#10 | 2026-07 | 业务团队 review 升级（225 资产合并 + Hedonic 回归 + 中文化 SHAP + 数据后端 SQLite） |
-| 新功能 | 2026-07-27 | 新资产估价录入 `/valuation/new`、尽职调查中心 `/due-diligence`、建模介绍 `/modeling-intro` |
+| 新功能 | 2026-07-27 | 新资产估价录入 `/valuation/new`、建模介绍 `/modeling-intro` |
 | UX 重构 | 2026-07-27 | 详情页"结论先行"布局：头部 + 资产画像 → 左[地图+竞品对标] / 右[结论(定价)+支撑特征]；竞品对标与地图就近联动；消除双重滚动；结论区加可信度来源闭环 |
 | 模型 & 训练 | 2026-07-28 | 「定位训练样本」地图按钮；模型训练 Tab 两功能（上传 Excel 增训 + 行内新增训练数据 + 一键重训）；后端 `training_samples` 表 + `/api/training-samples` CRUD + `refit` 端点；`fit_hedonic.py` 改为读表重训；模型系数由真实青岛样本拟合（comparative R²≈0.85 / historical R²≈0.14） |
 

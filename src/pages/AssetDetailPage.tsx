@@ -20,7 +20,7 @@ import MapView from '@/components/map/MapView';
 import AssetPortraitCard from '@/components/detail/AssetPortraitCard';
 import AssetSummaryBar from '@/components/detail/AssetSummaryBar';
 import HistoryTrendCard from '@/components/detail/HistoryTrendCard';
-import DueDiligenceOverview from '@/components/due_diligence/DueDiligenceOverview';
+
 import AiFeaturesCard from '@/components/detail/AiFeaturesCard';
 import ValuationPanel from '@/components/detail/ValuationPanel';
 import FormulaModal from '@/components/detail/FormulaModal';
@@ -240,7 +240,7 @@ export default function AssetDetailPage() {
             </div>
           </section>
 
-          {/* —— 支撑特征区：历史 / 尽调 / AI特征 等支撑结论 —— */}
+          {/* —— 支撑特征区：历史 / AI特征 等支撑结论 —— */}
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-ink-500 tracking-wide">
@@ -250,8 +250,6 @@ export default function AssetDetailPage() {
             </div>
 
             <HistoryTrendCard asset={asset} />
-
-            <DueDiligenceOverview asset={asset} />
 
             <AiFeaturesCard asset={asset} />
 
