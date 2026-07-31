@@ -12,6 +12,11 @@ ARG VITE_AMAP_SECURITY
 ENV VITE_AMAP_KEY=$VITE_AMAP_KEY
 ENV VITE_AMAP_SECURITY=$VITE_AMAP_SECURITY
 
+# 后端 API 地址（仅情报站/爬虫功能需要）。不传时默认 http://localhost:3001/api，
+# 只在"浏览器与后端同机"时可用；跨机部署须传入客户可访问的地址。
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # 缓存依赖层（pom/package 变了才会重装）
 COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund || npm install

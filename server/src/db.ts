@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -39,7 +39,16 @@ export function getDb(): Database.Database {
  */
 export function initSchema(): void {
   const db = getDb();
-  const schemaPath = join(__dirname, 'schema.sql');
+  // dev(tsx) 下 __dirname 是 src/；编译后是 dist/，schema.sql 可能仍在 src/ —— 逐个回退
+  const candidates = [
+    join(__dirname, 'schema.sql'),
+    join(__dirname, '../src/schema.sql'),
+    join(__dirname, '../schema.sql'),
+  ];
+  const schemaPath = candidates.find((p) => existsSync(p));
+  if (!schemaPath) {
+    throw new Error(`[db] 找不到 schema.sql，已尝试: ${candidates.join(', ')}`);
+  }
   const sql = readFileSync(schemaPath, 'utf-8');
   db.exec(sql);
   console.log('[db] 表结构初始化完成');

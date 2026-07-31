@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import {
   Button,
   Result,
@@ -37,6 +38,7 @@ import type { CompetitorForRadar } from '@/types';
 export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const assets = useAssetStore((s) => s.assets);
   const competitors = useAssetStore((s) => s.competitors);
   const loading = useAssetStore((s) => s.loading);
@@ -128,7 +130,7 @@ export default function AssetDetailPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* 顶部 Header：资产名称 + 关键 meta + 主操作 */}
-      <div className="sticky top-0 z-40 bg-white border-b border-ink-100 px-6 py-2.5 flex items-center gap-3">
+      <div className="sticky top-0 z-40 bg-white border-b border-ink-100 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2 md:gap-3">
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => {
@@ -143,7 +145,7 @@ export default function AssetDetailPage() {
         <Tag color={cls === 'non_standard' ? 'orange' : 'green'}>
           {cls === 'non_standard' ? '非标资产' : '标准资产'}
         </Tag>
-        <span className="text-xs text-ink-500 truncate max-w-[36%]">{asset.address}</span>
+        <span className="text-xs text-ink-500 truncate hidden md:inline max-w-[40%]">{asset.address}</span>
         <Button
           size="small"
           type="primary"
@@ -177,8 +179,8 @@ export default function AssetDetailPage() {
 
       <div className="grid grid-cols-5 gap-0 overflow-hidden">
         {/* 左 40%：地图 + 竞品对标（二者双向联动，就近陈列） */}
-        <div className="col-span-2 relative bg-slate-100 border-r border-gray-200 flex flex-col">
-          <div className="h-[55vh] flex-shrink-0 relative">
+        <div className={isMobile ? 'col-span-1 relative bg-slate-100 border-gray-200 flex flex-col' : 'col-span-2 relative bg-slate-100 border-r border-gray-200 flex flex-col'}>
+          <div className={isMobile ? 'h-[40vh] flex-shrink-0 relative' : 'h-[55vh] flex-shrink-0 relative'}>
             <MapView
               focusAsset={asset}
               onMarkerClick={(a) => {
@@ -207,7 +209,7 @@ export default function AssetDetailPage() {
         </div>
 
         {/* 右 60%：结论（定价）先行 + 支撑特征 */}
-        <div className="col-span-3 p-4 space-y-4">
+        <div className={isMobile ? 'col-span-1 p-3 space-y-3' : 'col-span-3 p-4 space-y-4'}>
           {/* —— 结论区：智能定价面板，用户首屏先看结论 —— */}
           <section className="rounded-xl ring-2 ring-brand/30 bg-brand-50/40 p-2.5">
             <div className="mb-2 flex items-center gap-2">
@@ -292,7 +294,7 @@ export default function AssetDetailPage() {
             <span>{asset.name} · 报告工厂</span>
           </Space>
         }
-        width={720}
+        width={isMobile ? '100%' : 720}
         extra={
           <Space>
             <Button onClick={() => setReportOpen(false)}>关闭</Button>

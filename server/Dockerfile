@@ -19,16 +19,25 @@ LABEL description="租金地图评估系统 - 数据后端（SQLite + Express）
 
 # 安装 better-sqlite3 运行时依赖（仅 talloc，alpine 默认已有）
 # better-sqlite3 是预编译二进制，node:20-alpine 兼容
+# 同时安装 python3 + numpy：Hedonic 重训脚本 fit_hedonic.py 由 /refit 接口调用
+# （node:20-alpine 默认无 Python，会导致 spawn python3 ENOENT）
 
 WORKDIR /app
+
+# 安装 Python 与 numpy（py3-numpy 来自 alpine community 源）
+RUN apk add --no-cache python3 py3-numpy
 
 # 复制 package.json 并安装 production 依赖
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-# 复制编译产物
+# 复制编译产物（tsc 不会拷贝 .sql，故 dist/ 与 src/ 各放一份，保证 initSchema 能找到）
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/schema.sql ./dist/schema.sql
 COPY --from=builder /app/src/schema.sql ./src/schema.sql
+
+# 复制 Hedonic 拟合脚本到 /refit 接口期望的路径（dist/routes → ../scripts）
+COPY --from=builder /app/src/scripts/fit_hedonic.py ./dist/scripts/fit_hedonic.py
 
 # 数据持久化目录
 RUN mkdir -p /app/data

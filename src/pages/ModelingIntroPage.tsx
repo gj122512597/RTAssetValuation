@@ -132,7 +132,7 @@ export default function ModelingIntroPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex flex-wrap items-center gap-2 sticky top-0 z-10">
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
           返回地图
         </Button>
@@ -143,7 +143,7 @@ export default function ModelingIntroPage() {
 
       <Tabs
         defaultActiveKey="intro"
-        className="px-6 pt-4"
+        className="px-4 md:px-6 pt-4"
         items={[
           {
             key: 'intro',

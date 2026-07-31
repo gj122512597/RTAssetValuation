@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Row, Col, Card, Segmented, Button, Typography, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { api } from '@/api/client';
@@ -82,6 +83,7 @@ async function fetchNeighbors(input: NewAssetInput): Promise<NeighborCompetitor[
 
 export default function NewAssetValuationPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [method, setMethod] = useState<PricingModel>('comparative');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<NewAssetValuationResult | null>(null);
@@ -169,9 +171,9 @@ export default function NewAssetValuationPage() {
   );
 
   return (
-    <div style={{ padding: 16, minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ padding: isMobile ? 12 : 16, minHeight: '100vh', background: '#f5f5f5' }}>
       <Card size="small" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
             返回
           </Button>

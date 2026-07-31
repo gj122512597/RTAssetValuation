@@ -28,10 +28,10 @@ import sqlite3
 import numpy as np
 from statistics import median
 
-# 必须与 server/src/db.ts 的 DB_PATH 一致：join(__dirname,'../../data/rt_asset.db')
-# 脚本位于 server/src/scripts/fit_hedonic.py，向上 4 层到达项目根
+# 优先使用与 server/src/db.ts 一致的 DB_PATH 环境变量（容器内为 /app/data/rt_asset.db）；
+# 未设置时回退到脚本位置的 projet 根 data 目录（兼容本地开发 server/src/scripts 布局）。
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-DB_PATH = os.path.join(_ROOT, "data", "rt_asset.db")
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(_ROOT, "data", "rt_asset.db")
 
 COMPARATIVE_FEATS = [
     'subway_distance', 'condition_score', 'decoration_idx', 'certificate_idx',

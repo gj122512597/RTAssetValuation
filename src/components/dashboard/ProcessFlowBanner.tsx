@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useNavigate } from 'react-router-dom';
 import {
   ApartmentOutlined,
@@ -63,9 +64,10 @@ export default function ProcessFlowBanner() {
   const comps = useAssetStore((s) => s.competitors.length);
   const tasks = useAssetStore((s) => s.crawlerTasks.length);
   const counts: Counts = { assets, comps, tasks };
+  const isMobile = useIsMobile();
 
   return (
-    <div className="bg-white/95 rounded-lg shadow-card flex items-center gap-3 px-3 py-2">
+    <div className="bg-white/95 rounded-lg shadow-card flex flex-wrap items-center gap-2 md:gap-3 px-3 py-2">
       {/* 品牌（固定不滚） */}
       <span className="flex shrink-0 items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white shadow-sm">
@@ -77,15 +79,15 @@ export default function ProcessFlowBanner() {
       <div className="h-7 w-px shrink-0 bg-gray-200" />
 
       {/* 流程标题 + 3 阶段（单行，不滚动） */}
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 flex-wrap md:flex-nowrap">
         {/* 流程标题（固定不滚） */}
         <span className="flex shrink-0 items-center gap-2 pr-1 text-ink-900">
           <ApartmentOutlined className="text-base text-brand" />
           <span className="text-sm font-semibold">业务主流程</span>
         </span>
 
-        {/* 3 阶段流水线 */}
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {/* 3 阶段流水线（移动端换行，避免溢出被屏幕右缘裁掉） */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 md:flex-nowrap">
           {STAGES.map((s, i) => (
             <div key={s.key} className="flex shrink-0 items-center gap-1.5">
               <div
@@ -101,12 +103,14 @@ export default function ProcessFlowBanner() {
                   {i + 1}
                 </span>
                 <span className="text-sm text-ink-500 group-hover:text-brand">{s.icon}</span>
-                <div className="whitespace-nowrap leading-tight">
+                <div className={isMobile ? 'leading-tight' : 'whitespace-nowrap leading-tight'}>
                   <div className="text-xs font-semibold text-ink-900">{s.title}</div>
-                  <div className="text-[10px] text-ink-500">
-                    {s.desc(counts)}
-                    {s.hint && <span className="ml-1 text-ink-400">· {s.hint}</span>}
-                  </div>
+                  {!isMobile && (
+                    <div className="text-[10px] text-ink-500">
+                      {s.desc(counts)}
+                      {s.hint && <span className="ml-1 text-ink-400">· {s.hint}</span>}
+                    </div>
+                  )}
                 </div>
               </div>
               {i < STAGES.length - 1 && (

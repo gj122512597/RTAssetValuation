@@ -10,7 +10,7 @@ import governmentRouter from './routes/government.js';
 import assetsRouter from './routes/assets.js';
 import dataSourcesRouter from './routes/dataSources.js';
 import statsRouter from './routes/stats.js';
-import modelsRouter from './routes/models.js';
+import modelsRouter, { ensureSeed as ensureModelSeed } from './routes/models.js';
 import trainingSamplesRouter, { initTrainingSamples } from './routes/trainingSamples.js';
 
 const app = express();
@@ -50,7 +50,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // 启动
+// 顺序不可调换：先建表，再灌种子数据
 initSchema();
+ensureModelSeed();
 initTrainingSamples();
 app.listen(PORT, () => {
   console.log(`[server] 数据后端已启动: http://localhost:${PORT}`);

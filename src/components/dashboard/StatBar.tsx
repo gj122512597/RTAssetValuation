@@ -40,7 +40,7 @@ export default function StatBar() {
   }, [assets]);
 
   return (
-    <div className="bg-white/95 rounded-lg shadow-card border border-gray-100 px-3 py-2 flex items-center gap-4">
+    <div className="bg-white/95 rounded-lg shadow-card border border-gray-100 px-3 py-2 flex flex-wrap items-center gap-2 md:gap-4">
       {/* 主指标：资产总数（最核心） */}
       <div className="flex flex-col leading-none">
         <span className="text-[11px] text-ink-500 flex items-center gap-1">
@@ -52,7 +52,7 @@ export default function StatBar() {
         </span>
       </div>
 
-      <div className="h-9 w-px shrink-0 bg-gray-200" />
+      <div className="hidden md:block h-9 w-px shrink-0 bg-gray-200" />
 
       {/* 主指标：本月预估收入 */}
       <div className="flex flex-col leading-none">
@@ -69,7 +69,7 @@ export default function StatBar() {
         </span>
       </div>
 
-      <div className="h-9 w-px shrink-0 bg-gray-200" />
+      <div className="hidden md:block h-9 w-px shrink-0 bg-gray-200" />
 
       {/* 次级指标组 */}
       <div className="flex flex-1 items-center justify-around gap-3 min-w-0">

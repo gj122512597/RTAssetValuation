@@ -128,7 +128,9 @@ function modelToRow(method: string, m: HedonicModel) {
 }
 
 // 首次启动：把内置模型写入库（幂等）
-function ensureSeed() {
+// 注意：必须在 initSchema() 之后调用，不能在模块顶层执行——
+// ESM 的 import 求值早于 index.ts 主体，空库时会抛 "no such table: hedonic_models"
+export function ensureSeed() {
   const db = getDb();
   for (const [method, m] of Object.entries(BUILTIN)) {
     const exists = db.prepare('SELECT 1 FROM hedonic_models WHERE method = ?').get(method);
@@ -142,7 +144,6 @@ function ensureSeed() {
     }
   }
 }
-ensureSeed();
 
 // 服务端推理（与前端 hedonicPredict 对齐）
 function predict(model: HedonicModel, x: Record<string, number>) {

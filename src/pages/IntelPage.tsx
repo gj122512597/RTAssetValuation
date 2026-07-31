@@ -27,7 +27,7 @@ export default function IntelPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex flex-wrap items-center gap-2">
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
           返回地图
         </Button>
@@ -36,7 +36,7 @@ export default function IntelPage() {
         <div className="ml-auto text-xs text-gray-500">仅展示爬虫/校准任务概览</div>
       </div>
 
-      <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4">
         {/* 高德 POI 真实拉取 */}
         <PoiCrawlPanel />
 
