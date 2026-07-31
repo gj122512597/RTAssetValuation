@@ -80,7 +80,8 @@ export default function HomePage() {
   const isMobile = useIsMobile();
   const [overviewOpen, setOverviewOpen] = useState(false);
 
-  const overviewPanel = (
+  const overviewPanel = useMemo(
+    () => (
     <>
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
         <div>
@@ -208,6 +209,8 @@ export default function HomePage() {
         />
       </div>
     </>
+    ),
+    [stats.count, assets.length, visibleAssets, loading, visibleCompetitors]
   );
 
   return (
@@ -255,6 +258,7 @@ export default function HomePage() {
             placement="right"
             width="88%"
             open={overviewOpen}
+            destroyOnClose
             onClose={() => setOverviewOpen(false)}
           >
             <div className="flex flex-col h-full">{overviewPanel}</div>
