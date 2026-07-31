@@ -5,16 +5,14 @@ interface Props {
   dataset: PoiDataset;
   showMetro: boolean;
   showDistricts: boolean;
-  showHeatmap: boolean;
 }
 
 /**
  * POI 覆盖层（M4 P3-2）
  *  - 地铁线（GeoJSON LineString）
  *  - 商圈（半径圆）
- *  - 人口热力点（散点）
  */
-export default function PoiLayer({ dataset, showMetro, showDistricts, showHeatmap }: Props) {
+export default function PoiLayer({ dataset, showMetro, showDistricts }: Props) {
   if (!dataset) return null;
 
   const metroData = {
@@ -103,21 +101,6 @@ export default function PoiLayer({ dataset, showMetro, showDistricts, showHeatma
           ))}
         </>
       )}
-
-      {showHeatmap &&
-        dataset.hot.map((h) => (
-          <Marker key={h.id} longitude={h.center[0]} latitude={h.center[1]} anchor="center">
-            <div
-              className="rounded-full"
-              style={{
-                width: 20 + h.intensity * 30,
-                height: 20 + h.intensity * 30,
-                background: `radial-gradient(circle, rgba(239,68,68,${h.intensity * 0.6}) 0%, transparent 70%)`,
-                pointerEvents: 'none',
-              }}
-            />
-          </Marker>
-        ))}
     </>
   );
 }

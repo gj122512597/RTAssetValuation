@@ -57,7 +57,6 @@ export default function LayerControlPanel() {
   const setCurrentUser = useAssetStore((s) => s.setCurrentUser);
   const showMetro = useAssetStore((s) => s.showMetro);
   const showDistricts = useAssetStore((s) => s.showDistricts);
-  const showHeatmap = useAssetStore((s) => s.showHeatmap);
   const togglePoi = useAssetStore((s) => s.togglePoi);
   const assets = useAssetStore((s) => s.assets);
 
@@ -206,10 +205,9 @@ export default function LayerControlPanel() {
           {[
             { k: 'metro' as const, label: '地铁线路' },
             { k: 'districts' as const, label: '商圈分级' },
-            { k: 'heatmap' as const, label: '人口热力' },
           ].map((it) => {
             const checked =
-              it.k === 'metro' ? showMetro : it.k === 'districts' ? showDistricts : showHeatmap;
+              it.k === 'metro' ? showMetro : showDistricts;
             return (
               <Checkbox
                 key={it.k}

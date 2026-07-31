@@ -69,7 +69,7 @@ function markerHTML(asset: Asset, opts: { selected: boolean; hovered: boolean })
       : 'background:rgba(255,255,255,0.95);color:#333;border:1px solid #ddd;border-radius:4px;padding:1px 5px;';
 
   const ripple =
-    opts.selected || isCritical
+    opts.selected
       ? `<span style="position:absolute;left:50%;top:50%;width:${
           size * 2.5
         }px;height:${
@@ -77,19 +77,25 @@ function markerHTML(asset: Asset, opts: { selected: boolean; hovered: boolean })
         }px;border-radius:50%;background:${fill};opacity:0.4;transform:translate(-50%,-50%);animation:rtv-ping 1.6s cubic-bezier(0,0,.2,1) infinite;"></span>`
       : '';
 
+  // 空置 > 90 天：坐标点本体闪烁（不再用外圈红色 ping）
+  const blinkStyle = isCritical
+    ? `animation:rtv-blink 1.4s ease-in-out infinite;transform-origin:center;`
+    : '';
+
   return `
     <div style="position:relative;display:flex;align-items:center;cursor:pointer;transform:scale(${
       opts.selected || opts.hovered ? 1.1 : 1
     });">
       ${ripple}
-      <svg width="${size * 2}" height="${size * 2}" viewBox="0 0 24 24" style="position:relative;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));">
+      <svg width="${size * 2}" height="${size * 2}" viewBox="0 0 24 24" style="position:relative;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));${blinkStyle}">
         ${shape}
       </svg>
       <span style="${labelStyle}margin-left:6px;font-size:11px;line-height:1.4;white-space:nowrap;pointer-events:none;">
         ${asset.name} <span style="opacity:.6;font-size:10px;margin-left:2px;">¥${asset.estimated_price}</span>
       </span>
     </div>
-    <style>@keyframes rtv-ping {75%,100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}</style>
+    <style>@keyframes rtv-ping {75%,100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+@keyframes rtv-blink {0%,100%{opacity:1}50%{opacity:.25}}</style>
   `;
 }
 
@@ -234,6 +240,7 @@ export default function AmapMapView({
   const poi = useAssetStore((s) => s.poi);
   const showMetro = useAssetStore((s) => s.showMetro);
   const showDistricts = useAssetStore((s) => s.showDistricts);
+  const regionLayer = useAssetStore((s) => s.regionLayer);
   const setSelectedId = useAssetStore((s) => s.setSelectedAssetId);
 
   const visibleAssets = useMemo(
@@ -353,6 +360,7 @@ export default function AmapMapView({
     if (!AMap) return;
 
     const created: any[] = [];
+    let cancelled = false;
 
     if (detailMode && focusAsset && detailRadiusKm) {
       const circle = new (AMap as any).Circle({
@@ -419,6 +427,129 @@ export default function AmapMapView({
           map.setZoomAndCenter(15, [sel.lnglat[0], sel.lnglat[1]], false, 600);
         }
       }
+    } else if (regionLayer === 'cluster') {
+      // 轻量网格聚合（不依赖 MarkerCluster 插件，稳定可控；缩放/平移实时散开）
+      let clusterMarkers: any[] = [];
+      const renderCluster = () => {
+        clusterMarkers.forEach((m) => safeRemove(map, m));
+        clusterMarkers = [];
+        const bounds = map.getBounds();
+        if (!bounds) return;
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const size = map.getSize();
+        const gridLng = (ne.getLng() - sw.getLng()) / Math.max(1, size.getWidth() / 60);
+        const gridLat = (ne.getLat() - sw.getLat()) / Math.max(1, size.getHeight() / 60);
+        const buckets = new Map<string, any[]>();
+        visibleAssets.forEach((asset) => {
+          const gx = Math.floor((asset.lnglat[0] - sw.getLng()) / gridLng);
+          const gy = Math.floor((asset.lnglat[1] - sw.getLat()) / gridLat);
+          const key = `${gx}_${gy}`;
+          const arr = buckets.get(key) || [];
+          arr.push(asset);
+          buckets.set(key, arr);
+        });
+        buckets.forEach((assets) => {
+          const lng = assets.reduce((s: number, a: any) => s + a.lnglat[0], 0) / assets.length;
+          const lat = assets.reduce((s: number, a: any) => s + a.lnglat[1], 0) / assets.length;
+          let m: any;
+          if (assets.length === 1) {
+            m = new (AMap as any).Marker({
+              position: [lng, lat],
+              content: markerHTML(assets[0], {
+                selected: assets[0].id === selectedId,
+                hovered: false,
+              }),
+              zIndex: 30,
+            });
+            m.on('click', (e: any) => {
+              e?.event?.stopPropagation?.();
+              onMarkerClick(assets[0]);
+            });
+          } else {
+            m = new (AMap as any).Marker({
+              position: [lng, lat],
+              anchor: 'center',
+              content: `<div style="width:38px;height:38px;border-radius:50%;background:rgba(31,111,235,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.3);">${assets.length}</div>`,
+              zIndex: 40,
+            });
+            m.on('click', () => {
+              map.setZoomAndCenter(Math.min(18, map.getZoom() + 2), [lng, lat]);
+            });
+          }
+          map.add && map.add(m);
+          clusterMarkers.push(m);
+        });
+      };
+      renderCluster();
+      map.on('zoomend', renderCluster);
+      map.on('moveend', renderCluster);
+      created.push({
+        destroy: () => {
+          clusterMarkers.forEach((m) => safeRemove(map, m));
+          map.off('zoomend', renderCluster);
+          map.off('moveend', renderCluster);
+        },
+      });
+    } else if (regionLayer === 'district') {
+      // 行政区模式：按 region 聚合，加载行政区边界多边形并按资产数着色 + 中心标注
+      const groups = new Map<string, Asset[]>();
+      visibleAssets.forEach((a) => {
+        const arr = groups.get(a.region) || [];
+        arr.push(a);
+        groups.set(a.region, arr);
+      });
+      const maxCount = Math.max(
+        1,
+        ...Array.from(groups.values()).map((g) => g.length)
+      );
+      groups.forEach((assets, region) => {
+        const lng = assets.reduce((s, a) => s + a.lnglat[0], 0) / assets.length;
+        const lat = assets.reduce((s, a) => s + a.lnglat[1], 0) / assets.length;
+        const avg =
+          assets.reduce((s, a) => s + (a.estimated_price || 0), 0) / (assets.length || 1);
+        const opacity = 0.12 + 0.5 * (assets.length / maxCount);
+
+        const ds = new (AMap as any).DistrictSearch({ subdistrict: 0, extensions: 'all' });
+        ds.search(region, (_status: string, result: any) => {
+          if (cancelled) return;
+          const boundaries = result?.districtList?.[0]?.boundaries;
+          if (boundaries) {
+            boundaries.forEach((path: number[][]) => {
+              const poly = new (AMap as any).Polygon({
+                path: path.map((p) => [p[0], p[1]]),
+                strokeColor: '#1f6feb',
+                strokeWeight: 1.5,
+                strokeOpacity: 0.9,
+                fillColor: '#1f6feb',
+                fillOpacity: opacity,
+                zIndex: 50,
+              });
+              map.add && map.add(poly);
+              created.push(poly);
+            });
+          }
+        });
+
+        const label = new (AMap as any).Text({
+          position: [lng, lat],
+          text: `${region}\n${assets.length}处 · 均价${Math.round(avg)}`,
+          style: {
+            background: 'rgba(15,23,42,0.82)',
+            color: '#fff',
+            border: 'none',
+            padding: '4px 8px',
+            'border-radius': '6px',
+            'font-size': '12px',
+            'white-space': 'pre',
+            'text-align': 'center',
+          },
+          anchor: 'center',
+          zIndex: 60,
+        });
+        map.add && map.add(label);
+        created.push(label);
+      });
     } else {
       visibleAssets.forEach((asset) => {
         const m = new (AMap as any).Marker({
@@ -438,7 +569,15 @@ export default function AmapMapView({
     }
 
     return () => {
-      created.forEach((x) => safeRemove(map, x));
+      cancelled = true;
+      created.forEach((x: any) => {
+        if (x && typeof x.destroy === 'function') {
+          x.destroy();
+          return;
+        }
+        if (x && typeof x.setMap === 'function') x.setMap(null);
+        else safeRemove(map, x);
+      });
     };
   }, [
     loaded,
@@ -453,6 +592,7 @@ export default function AmapMapView({
     hoveredCompetitorId,
     setSelectedCompetitorId,
     setHoveredCompetitorId,
+    regionLayer,
   ]);
 
   // 4. POI（地铁 + 商圈）

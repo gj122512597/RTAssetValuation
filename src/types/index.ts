@@ -366,18 +366,10 @@ export interface BusinessDistrict {
   radius_km: number;
 }
 
-/** 人口热力点 */
-export interface PopulationHot {
-  id: string;
-  center: [number, number];
-  intensity: number;   // 0~1
-}
-
 /** 综合 POI 数据集 */
 export interface PoiDataset {
   metro: MetroLine[];
   districts: BusinessDistrict[];
-  hot: PopulationHot[];
 }
 
 /** 相似案例（M4 P5-1） */

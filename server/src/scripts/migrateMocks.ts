@@ -448,9 +448,9 @@ function migrate(): void {
     stmtTask.run(t.id, taskNameMap[t.id as string] ?? `任务${t.id}`, t.source, 'competitor', t.region, t.schedule as string, t.status, t.last_run_at as string, t.record_count as number, (t.manual_calibrated as number) ?? 0);
   }
 
-  // 3. POI 数据（从 mocks/poi.json 读取地铁/商圈/热力）
+  // 3. POI 数据（从 mocks/poi.json 读取地铁/商圈）
   console.log('[migrate] 导入 POI 数据...');
-  const poiData = JSON.parse(readFileSync(join(FRONTEND_MOCKS, 'poi.json'), 'utf-8')) as { metro: Array<{ id: string; name: string; coordinates: [number, number][] }>; districts: Array<{ id: string; name: string; center: [number, number] }>; hot: Array<{ id: string; center: [number, number]; intensity: number }> };
+  const poiData = JSON.parse(readFileSync(join(FRONTEND_MOCKS, 'poi.json'), 'utf-8')) as { metro: Array<{ id: string; name: string; coordinates: [number, number][] }>; districts: Array<{ id: string; name: string; center: [number, number] }> };
   const stmtPoi = db.prepare(`INSERT OR IGNORE INTO poi_data (id, source, name, category, sub_type, lng, lat, captured_at) VALUES (?, 'mock', ?, ?, ?, ?, ?, ?)`);
   let poiIdx = 0;
   for (const line of poiData.metro) {
@@ -462,10 +462,6 @@ function migrate(): void {
   for (const d of poiData.districts) {
     poiIdx++;
     stmtPoi.run(`poi-district-${d.id}`, d.name, 'shopping', '商圈', d.center[0], d.center[1], now);
-  }
-  for (const h of poiData.hot) {
-    poiIdx++;
-    stmtPoi.run(`poi-hot-${h.id}`, `热力点${h.id}`, 'shopping', '人口热力', h.center[0], h.center[1], now);
   }
 
   // 4. 读取 25 条 mock 资产 + 生成 200 条程序化资产

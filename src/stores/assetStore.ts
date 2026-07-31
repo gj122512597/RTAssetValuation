@@ -60,7 +60,6 @@ interface AssetState {
   // M4: POI 控制
   showMetro: boolean;
   showDistricts: boolean;
-  showHeatmap: boolean;
 
   // actions
   loadAll: () => Promise<void>;
@@ -78,7 +77,7 @@ interface AssetState {
   setCompRadiusKm: (km: number) => void;
   setShowCompetitors: (b: boolean) => void;
   toggleManualRisk: (assetId: string, tag: HiddenRiskTag) => void;
-  togglePoi: (k: 'metro' | 'districts' | 'heatmap') => void;
+  togglePoi: (k: 'metro' | 'districts') => void;
   toggleModelUsed: (m: PricingModel) => void;
   setCrawlerTaskStatus: (id: string, status: CrawlerTask['status']) => void;
   resetData: () => void;
@@ -179,7 +178,6 @@ export const useAssetStore = create<AssetState>((set, get) => ({
 
   showMetro: true,
   showDistricts: false,
-  showHeatmap: false,
 
   loadAll: async () => {
     if (get().loading) return;
@@ -284,7 +282,6 @@ export const useAssetStore = create<AssetState>((set, get) => ({
     set((s) => ({
       showMetro: k === 'metro' ? !s.showMetro : s.showMetro,
       showDistricts: k === 'districts' ? !s.showDistricts : s.showDistricts,
-      showHeatmap: k === 'heatmap' ? !s.showHeatmap : s.showHeatmap,
     })),
   toggleModelUsed: (m) =>
     set((s) => ({

@@ -2,14 +2,15 @@
 
 **面向业务团队 review 的资产盘点 / 竞品对标 / 智能估价 / 报告生成一体工作台**，以 GIS 地图为核心交互载体。
 
-> 状态：**全功能可运行系统** —— PRD §1～§4 全部交付；内置 **SQLite + Express 数据后端**（225 资产 / 325 竞品 / 876 历史成交 / 26 POI 已全量入库）；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图；新增 **新资产估价录入 / 建模介绍** 页面。
+> 状态：**全功能可运行系统（rtdemo 客户交付版）** —— 数据采集 / 资产建模 / 智能定价 主线全部可用；内置 **SQLite + Express 数据后端**（225 资产 / 325 竞品 / 876 历史成交 / 26 POI 已全量入库）；Hedonic 对数线性回归估值模型；高德 AMap JS API v2.0 地图；**新资产估价录入 / 建模介绍** 页面；**移动端响应式适配（≤768px 自动切换）**。
+> 注：本分支（`rtdemo`）为给客户演示做的**功能删减版**，已移除「尽职调查工作流」（页面 / 组件 / 数据 / 类型 / store / 路由 / 流程条阶段）。需完整版请切回 `main` 分支。
 > 待接入：真实 BFF 联调、NFR §5 信创部署（麒麟 OS 镜像已就绪）、爬虫调度 Airflow。
 
 ---
 
 ## 目录
 
-- [核心能力（8 大模块）](#核心能力8-大模块)
+- [核心能力（业务主线 + 模块）](#核心能力业务主线--模块)
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
 - [项目结构](#项目结构)
@@ -19,23 +20,34 @@
 - [定价模型：Hedonic 对数线性回归](#定价模型hedonic-对数线性回归)
 - [模型训练与增训（Hedonic 训练 Tab）](#模型训练与增训hedonic-训练-tab)
 - [AI 建模特征（12 组）](#ai-建模特征12-组81-字段)
+- [移动端适配](#移动端适配)
 - [项目演进历程](#项目演进历程)
 - [后续扩展方向](#后续扩展方向)
+- [部署（Docker 离线交付）](#部署docker-离线交付)
 
 ---
 
-## 核心能力（8 大模块）
+## 核心能力（业务主线 + 模块）
 
-按 PRD §2：
+按业务主流程，本系统围绕「**数据采集 → 资产建模 → 智能定价**」三条主线展开（顶部 `ProcessFlowBanner` 固定展示）：
+
+| 主线 | 阶段 | 关键能力 | 入口 |
+|---|---|---|---|
+| 数据采集 | M4 | 爬虫任务管理（6 mock 条）+ 新建任务 + 4 源（贝壳/58/房天下/链家）+ POI 1km 统计 + OCR 评估报告 + 人工调研数据 | `/intel` |
+| 资产建模 | M8 | Hedonic 特征价格法原理、特征维度、贡献分解说明页；**模型训练 Tab**（上传 Excel 增训 + 行内新增训练数据 + 一键重训） | `/modeling-intro` |
+| 智能定价 | M1/M2/M6 | 全域 GIS 地图估价 + 资产详情钻取 + 新资产估价录入 | `/` `/asset/:id` `/valuation/new` |
+
+> `rtdemo` 分支已移除原「尽职调查」主线（M7）。完整 4 主线版本请见 `main` 分支。
+
+**支撑模块**：
 
 | # | 模块 | 关键能力 | 入口 |
 |---|---|---|---|
 | **M1** | 全域资产 GIS | 25/200 marker 渲染 + 形态分（圆/方/菱 × 红/绿/黄）+ 5 项聚合统计 + 业态/批次/区域图层控制 + 宏观图层（地铁/商圈/热力） | `/` |
 | **M2** | 资产详情钻取 | 画像卡 + AI 特征 10 组 + 双方法定价（市场比较法 / 历史数据法 · Hedonic 回归）+ 公式溯源 SHAP（含中英对照）+ 竞品对标（左右并列 + 双端联动 + InfoWindow 浮层）+ 合规审查 | `/asset/:id` |
 | **M3** | AI 报告工场 | 一键生成《租金评估建议书》HTML + 八项合规审查评分 + 浏览器原生 `window.print()` 导出 PDF | 详情页 → "生成报告" |
-| **M4** | 外部数据情报 | 爬虫任务管理（6 mock 条）+ 新建任务 + 4 源（贝壳/58/房天下/链家）+ POI 1km 统计 + OCR 评估报告 + 人工调研数据 | `/intel` |
+| **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` |
 | **M5** | 非标破冰 | 自动判定非标资产 + 残值/运输系数人工 slider + 4 个最相似案例下钻 + 参考区间（不给硬数字） | 详情页（仅极端非标资产可见） |
-| **M6** | 新资产估价录入 | 录入新资产特征 → 调 Hedonic 模型 → 自动检索周边竞品 → 输出建议日租金(中心+区间)+SHAP 贡献+置信度 | `/valuation/new` || **M8** | 建模介绍 | Hedonic 特征价格法原理、特征维度、贡献分解说明页；**模型训练 Tab**（上传 Excel 增训 + 行内新增训练数据 + 一键重训） | `/modeling-intro` |
 
 ---
 
@@ -94,6 +106,9 @@ src/
 │
 ├── stores/
 │   └── assetStore.ts                     # Zustand 单一 store（40+ 字段、15+ actions）
+│
+├── hooks/
+│   └── useIsMobile.ts                    # 移动端判定（antd Grid.useBreakpoint，≤768px 为移动端）
 │
 ├── mocks/
 │   ├── assets.json                       # 25 条（小数据集）
@@ -162,12 +177,14 @@ src/
 
 | 路径 | 页面 |
 |---|---|
-| `/` | Dashboard HomePage（225 资产 + 5 聚合统计 + 业态/批次/POI 控件） |
+| `/` | Dashboard HomePage（225 资产 + 5 聚合统计 + 业态/批次/POI 控件 + 业务主流程条） |
 | `/asset/:id` | AssetDetailPage（结论先行：智能定价 + AI 特征 + 报告 Drawer + 竞品对标） |
 | `/valuation/new` | NewAssetValuationPage（新资产估价录入：周边竞品检索 + Hedonic 测算 + SHAP） |
 | `/intel` | IntelPage（爬虫任务管理 + 新建任务） |
-| `/modeling-intro` | ModelingIntroPage（Hedonic 模型说明） |
+| `/modeling-intro` | ModelingIntroPage（Hedonic 模型说明 + 模型训练 Tab） |
 | `*` | 重定向到 `/` |
+
+> `rtdemo` 分支已移除 `/due-diligence` 尽职调查页及相关路由。
 
 ---
 
@@ -270,7 +287,7 @@ interface HedonicModel {
 - **功能 2 · 行内新增训练数据**：表格「+ 新增一行」直接行内编辑 / 保存 / 删除样本（来源标签区分 内置 / 上传 / 手动）。
 - **重训模型**：点「重训模型」→ 后端 `POST /api/training-samples/refit` 调 `python3 server/src/scripts/fit_hedonic.py` **全量重训**（岭回归 + LOO-CV 选 λ）→ 写回 `hedonic_models` 表 → 前端系数卡片与 R² 立即刷新（显示「重训前 → 重训后」对比）。
 
-> ⚠️ **重训依赖运行环境具备 `python3` 与 `numpy`**（`pip install numpy`）。无 Python / numpy 时，前端退回内置静态系数兜底，重训按钮无效。
+> ⚠️ **重训依赖运行环境具备 `python3` 与 `numpy`**：`server/Dockerfile` 的 runtime 阶段已 `apk add python3 py3-numpy` 并把 `fit_hedonic.py` 拷入镜像，因此**官方 api 镜像可直接重训**。本地 `npm run server:dev` 需自备 `python3` + `pip install numpy`，缺失时前端退回内置静态系数兜底、重训无效。
 > ⚠️ 重训语义为「**全量重训含新样本**」，会整体覆盖 `hedonic_models` 系数——内置 10 条系数现在已是真实训练结果，不再是硬编码兜底。
 > ⚠️ 训练样本与模型均持久化在后端 SQLite；点「重训模型」会用当前全部样本（内置 + 上传 + 手动）重拟合。
 
@@ -303,6 +320,26 @@ UI 表现（`AiFeaturesCard`）：
 
 ---
 
+## 移动端适配
+
+系统对 **≤768px（手机/小平板）** 做了全站响应式适配，**PC 端（>768px）布局完全不变**。
+
+判定：`src/hooks/useIsMobile.ts` 基于 antd `Grid.useBreakpoint()`，`!screens.md`（即 <768px）视为移动端，渲染期切换布局，无新依赖。
+
+适配要点：
+
+| 页面 / 组件 | 移动端表现 |
+|---|---|
+| `ProcessFlowBanner`（顶部业务主流程） | 外层 + 阶段流水线均 `flex-wrap`，3 阶段自动换行，避免溢出被屏幕右缘裁切 |
+| `StatBar` | `flex flex-wrap`，竖分隔线 `hidden md:block` |
+| `HomePage` | 顶栏绝对定位浮层改为右下角 FAB（圆形按钮）+ antd `Drawer`（标题「资产概览」，宽 88%）；`right-[336px]` 让位逻辑在移动端移除 |
+| `AssetDetailPage` | 外层网格切换为 `grid-cols-1` 单列滚动；地图高度适配；报告 `Drawer` 宽 `100%`；地址在手机端 `hidden` |
+| `IntelPage` / `ModelingIntroPage` / `NewAssetValuationPage` | 头部 `flex flex-wrap`，改用 `md:` 断点，纯 CSS 适配 |
+
+> 适配仅改变 ≤768px 的布局分支；所有条件渲染与 CSS 断点均通过 `useIsMobile` / Tailwind `md:` 控制，PC 端代码路径不受影响。
+
+---
+
 ## 项目演进历程
 
 | 阶段 | 日期 | 内容 |
@@ -317,6 +354,8 @@ UI 表现（`AiFeaturesCard`）：
 | 新功能 | 2026-07-27 | 新资产估价录入 `/valuation/new`、建模介绍 `/modeling-intro` |
 | UX 重构 | 2026-07-27 | 详情页"结论先行"布局：头部 + 资产画像 → 左[地图+竞品对标] / 右[结论(定价)+支撑特征]；竞品对标与地图就近联动；消除双重滚动；结论区加可信度来源闭环 |
 | 模型 & 训练 | 2026-07-28 | 「定位训练样本」地图按钮；模型训练 Tab 两功能（上传 Excel 增训 + 行内新增训练数据 + 一键重训）；后端 `training_samples` 表 + `/api/training-samples` CRUD + `refit` 端点；`fit_hedonic.py` 改为读表重训；模型系数由真实青岛样本拟合（comparative R²≈0.85 / historical R²≈0.14） |
+| 移动端适配 | 2026-07-31 | 全站 ≤768px 响应式适配（基于 `useIsMobile`）：HomePage FAB+Drawer 概览、AssetDetailPage 单列、各页头部 `flex-wrap`、ProcessFlowBanner 阶段换行；PC 布局零改动 |
+| 客户镜像修复 | 2026-07-31 | web 镜像固化客户 `VITE_API_BASE_URL=http://218.203.49.164:3001/api` + AMap Key；api 镜像内置 `python3`+`numpy` 修复「重训 500 spawn python3 ENOENT」；重发 `rt-asset-arm64-images.tar`（arm64） |
 
 ---
 
@@ -446,11 +485,20 @@ npm run dev:all
 
 ---
 
-## 部署
+## 部署（Docker 离线交付）
 
-支持两种方式：
+> 详细步骤见 `DEPLOY.md`。本段给出概览。
 
-### A. 传统 npm
+交付物 `rt-asset-arm64-images.tar`（arm64 专用）含两个镜像：
+
+| 镜像 | 作用 |
+|---|---|
+| `rt-asset-valuation-web:latest` | 前端 Nginx 静态站点，**自带全部 225 资产演示数据** |
+| `rt-asset-valuation-api:latest` | 后端 Express + SQLite（情报站/爬虫落库 + Hedonic 重训，已内置 python3+numpy） |
+
+> **关键事实**：核心估价数据在构建时已打包进 web 镜像，**只跑 web 一个容器即可完整演示估价系统**，无需后端、无需数据库初始化。
+
+### A. 传统 npm（开发）
 
 ```bash
 npm install
@@ -458,65 +506,43 @@ npm run dev              # http://localhost:5173
 npm run build            # dist/ 静态产物
 ```
 
-### B. Docker（推荐给客户演示 / 内网部署）
-
-`Dockerfile` 是 **multi-stage build**：
-- 阶段 1：`node:20-alpine` 安装依赖 + `vite build`
-- 阶段 2：`nginx:1.27-alpine` 托管 `dist/`
-
-最终镜像约 30~40 MB（含 nginx + 静态资源）。
+### B. 离线镜像部署（推荐给客户 / 内网）
 
 ```bash
-# 1. 准备环境变量（申请高德 JS API key：https://lbs.amap.com/api/jsapi-v2/guide/abc/prepare）
-cp .env.example .env
-$EDITOR .env          # 填 VITE_AMAP_KEY 与 VITE_AMAP_SECURITY
+# 加载镜像（arm64 服务器）
+docker load -i rt-asset-arm64-images.tar
 
-# 2. 一键 build + 启动（docker-compose 会自动读取 .env）
-docker compose up -d --build
+# 最简部署：仅前端，覆盖全部估价演示
+docker run -d --name rt-web --restart unless-stopped -p 80:80 \
+  rt-asset-valuation-web:latest
 
-# 3. 浏览器访问
-open http://localhost:8080
+# 全栈部署（含后端，引用已加载镜像，不现场构建）
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-或者纯 docker 命令（不带 docker-compose）：
+- web 健康检查：`curl http://<IP>/healthz` → `ok`
+- 访问：`http://<IP>/`
+
+### Web 镜像构建要点
+
+`Dockerfile` multi-stage：`node:20-alpine` 构建 → `nginx:1.27-alpine` 托管 `dist/`。以下值在**构建期**内联进 bundle：
 
 ```bash
-docker build \
-  --build-arg VITE_AMAP_KEY=your_key \
-  --build-arg VITE_AMAP_SECURITY=your_sec \
-  -t rt-asset-valuation:1.0.0 .
-
-docker run -d --name rt-asset \
-  -p 8080:80 \
-  rt-asset-valuation:1.0.0
-
-docker logs -f rt-asset       # 日志
-curl http://localhost:8080/healthz   # → ok（健康检查）
+docker build --platform linux/arm64 -t rt-asset-valuation-web:latest \
+  --build-arg VITE_AMAP_KEY=<Key> \
+  --build-arg VITE_AMAP_SECURITY=<安全密钥> \
+  --build-arg VITE_API_BASE_URL=http://<客户主机IP>:3001/api .
 ```
 
-**关键点**：
-- **SPA fallback**：React Router 用 client-side routing，`/asset/RZ-2023-001` 这种路径没有真实后端文件，nginx 自动 fallback 到 `/index.html`
-- **静态资源 immutable**：Vite 产物 `/assets/*.js` 带 hash，nginx `Cache-Control: public, max-age=31536000, immutable` 长期缓存
-- **index.html no-cache**：每次部署 hash 都变，禁止中间代理缓存
-- **gzip**：JS/CSS/SVG 全压，平均 ~70% 体积下降
-- **健康检查**：每 30s 拉一次 `/healthz`，可接 k8s liveness probe
-- **安全性**：Referer 白名单由 AMap 控制台配置；nginx 默认加上 `X-Content-Type-Options`、`X-Frame-Options`
+- **后端地址固化**：`VITE_API_BASE_URL` 仅在「浏览器与后端同机」时默认 `localhost:3001/api` 有效；跨机访问需带上真实地址重新构建。
+- **高德 Key 白名单**：镜像内 Key 的 Referer 白名单须加入客户访问域名/IP，否则地图瓦片被拦截。
+- **SPA fallback / 静态资源 immutable / gzip / 健康检查 `/healthz`** 等由 nginx 配置处理（见 `nginx.conf`）。
 
-### 内网/信创生产部署
+### API 镜像要点
 
-按 PRD §5 NFR，XX地产最终部署应是：
+`server/Dockerfile` runtime 阶段已 `apk add python3 py3-numpy` 并把 `fit_hedonic.py` 拷入镜像，故官方 api 镜像**开箱即可重训**（不再报 `spawn python3 ENOENT`）。SQLite 经 `-v rt-asset-db:/app/data` 持久化。
 
-```bash
-# 内网 Harbor 镜像仓库
-docker build -t harbor.rtasset.internal/rt-asset-valuation:1.0.0 .
-docker push harbor.rtasset.internal/rt-asset-valuation:1.0.0
-
-# 麒麟 OS 信创服务器
-docker pull harbor.rtasset.internal/rt-asset-valuation:1.0.0
-docker run -d --name rt-asset -p 80:80 \
-  -e VITE_AMAP_KEY=内网专用_key \
-  rt-asset-valuation:1.0.0
-```
+> 镜像为 **arm64 专用**，x86_64 主机报 `exec format error`；需 x86 版本请另行 `docker buildx build --platform linux/amd64`。
 
 ---
 
